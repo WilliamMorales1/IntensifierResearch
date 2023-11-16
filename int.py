@@ -1,13 +1,13 @@
 # below is all the code i used to get the data
 # all of it was ran in colab.research.google.com
 
+# run the below commands to download spacy
 # !pip install -U pip setuptools wheel
 # !pip install -U spacy
 # !python -m spacy download es_dep_news_trf
 
-# !pip install python-docx
-
 # converting from docx -> txt
+# !pip install python-docx
 from docx import Document
 import os
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
 
 
-# marking all of the things
+# marking all of the things, I used spacy to code for adjectives
 import spacy
 import os
 
@@ -91,7 +91,7 @@ def mark_spanish_intensifiers(input_folder, output_folder):
 
             # Mark Spanish intensifiers and adjectives in the text, ignores everything in brackets
             marked_text = ""
-            # List of spanish intensifiers used, can be updated and ran again
+            # List of spanish intensifiers used, can be updated and/or changed
             intensifiers = {"muy", "tan", "bastante", "más", "super", "plenamente", "bien", "mucho", "mucha", 
                             "muchos", "muchas", "verdaderamente", "demasiado", "extremadamente", "sumamente"}
             in_brackets = False
