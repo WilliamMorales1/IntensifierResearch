@@ -12,6 +12,6 @@ Stuff you'll need: Python and Jupyter (I recommend just downloading [VSCode](htt
 6. Place the text folder into TagAnt to create a tagged version of all the files (make sure that you use the Spanish model, not the English one). For the Display Information, select "word+pos_tag+lemma" Move the newly created tagged folder to be under datos (so datos/tagged).
 7. Run each cell in Tagged_to_Data.ipynb. This'll create an excel sheet with all the data for the intensifiers (including null cases).
 8. Run id_data_to_tokens.py. This will combine the excell sheet with the information for every speaker that you made (id_df) with the excel sheet with all the intensifier data made in step 7 (int_df).
-9. Now you have an excel sheet with all the data. You can try making some graphs of the data using [Language Variation Suite](https://languagevariationsuite.shinyapps.io/Pages/) or anything else.
+9. Now you have an excel sheet with all the data. You can try making some graphs of the data using [Language Variation Suite](https://languagevariationsuite.shinyapps.io/Pages/) or anything else. Make sure you remove all commas before converting the excel file into a csv. You can do this easily by doing Ctrl-F and then replace all , with / or | or anything else you want that's not a comma. 
 
 If you get errors or are confused you can email me (though I might be busy) or you could try to just copypaste the error and code into ChatGPT.
