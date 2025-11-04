@@ -446,3 +446,4 @@ for col in df.select_dtypes(include=[object]).columns:
     # replaces commas with empty string, can change to s.t. else if you want
     df[col] = df[col].str.replace(',', '', regex=False)
 df.to_csv(int_data, index=False)
+df.to_excel(int_data[:-4] + ".xlsx", index=False)
