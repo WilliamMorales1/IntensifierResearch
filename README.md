@@ -2,7 +2,7 @@
 
 This is the code I used to analyze a number of Spanish transcripts for sociolinguistic research.
 
-Stuff you'll need: Python (I recommend just downloading [VSCode](https://code.visualstudio.com/download) and adding the Python and Jupyter extensions) and [TagAnt](https://www.laurenceanthony.net/software/tagant/)
+Stuff you'll need: [Python ](https://www.python.org/downloads/)(I recommend also downloading [VSCode](https://code.visualstudio.com/download) and adding the Python extension, although you could just use the cmd line) and [TagAnt](https://www.laurenceanthony.net/software/tagant/)
 
 1. Dowload all the files on the GitHub by going to Code -> Dowload Zip. You put the files whereever you want.
 2. Put the original .docx transcript files in a folder called "original".
