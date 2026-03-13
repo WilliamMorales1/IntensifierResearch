@@ -104,7 +104,7 @@ def get_adj(word):
     # apocope corrections
     if lex_adjective in apocope_dict:
         lex_adjective = apocope_dict[lex_adjective]
-    if lex_adjective.endswith("s"):
+    if lex_adjective.endswith("s") and lex_adjective != "lejos":
         lex_adjective = lex_adjective[:-1]
     if lex_adjective.endswith("a"):
         lex_adjective = lex_adjective[:-1] + "o"
@@ -206,6 +206,10 @@ def process_segment(segment, speaker):
 
             if lex_adjective.endswith("ísimo"):
                 intensifier = '-ísimo'
+                adjective = adjective.replace('quísim', 'c')
+                lex_adjective = lex_adjective.replace('quísim', 'c')
+                adjective = adjective.replace('guísim', 'g')
+                lex_adjective = lex_adjective.replace('guísim', 'g')
                 adjective = adjective.replace('ísim', '')
                 lex_adjective = lex_adjective.replace('ísim', '')
             
@@ -517,7 +521,6 @@ if __name__ == "__main__":
         # replaces commas with empty string, can change to sum else if you want
         df[col] = df[col].str.replace(',', '', regex=False)
     
-    df.to_csv(output, index=False)
     df.to_excel(output[:-4] + ".xlsx", index=False)
 
     print("Make sure to manually check the -ísimo cases!")
