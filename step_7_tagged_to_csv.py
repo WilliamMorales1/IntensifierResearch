@@ -99,7 +99,14 @@ def get_adj(word):
     adv_match = re.search(r'_ADJ_(.+)', word)
 
     adjective = adj_match.group(1) # type: ignore
+
+    if "ísim" in adjective:
+        adjective = adjective.replace('ísim', '')
+
     lex_adjective = adv_match.group(1) # type: ignore
+
+    if "ísim" in lex_adjective:
+        lex_adjective = lex_adjective.replace('ísim', '')
     
     # apocope corrections
     if lex_adjective in apocope_dict:
@@ -514,3 +521,5 @@ if __name__ == "__main__":
     
     df.to_csv(output, index=False)
     df.to_excel(output[:-4] + ".xlsx", index=False)
+
+    print("Make sure to manually check the -ísimo cases!")
