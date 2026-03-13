@@ -6,7 +6,7 @@ from datetime import date
 intensifier_list = ["absolutamente", "bastante", "casi", "completamente", "demasiado", "estrictamente",
             "especialmente", "extremadamente", "harto", "increíblemente", "mucho",
             "muy", "plenamente", "realmente", "sumamente", "súper", "totalmente", "verdaderamente",
-            "bien", "super", "supel", "re"]
+            "bien", "super", "supel", "re", "archi"]
 
 apocope_dict = {'gran': 'grande',
                 'buen': 'bueno',
@@ -82,7 +82,7 @@ def remove_SPACE(input_path):
                     file.write(modified_content)
 
 def is_well_formed(word):
-    if any(word.endswith(c) for c in 'oaeslndr') and re.match(r'^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑ]+$', word):
+    if any(word.endswith(c) for c in 'oaeslndr') and re.match(r'^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑí]+$', word):
         return True
     else:
         return False
@@ -99,14 +99,7 @@ def get_adj(word):
     adv_match = re.search(r'_ADJ_(.+)', word)
 
     adjective = adj_match.group(1) # type: ignore
-
-    if "ísim" in adjective:
-        adjective = adjective.replace('ísim', '')
-
     lex_adjective = adv_match.group(1) # type: ignore
-
-    if "ísim" in lex_adjective:
-        lex_adjective = lex_adjective.replace('ísim', '')
     
     # apocope corrections
     if lex_adjective in apocope_dict:
@@ -213,8 +206,13 @@ def process_segment(segment, speaker):
 
             if lex_adjective.endswith("ísimo"):
                 intensifier = '-ísimo'
+                adjective = adjective.replace('ísim', '')
+                lex_adjective = lex_adjective.replace('ísim', '')
+            
             if lex_adjective.startswith("archi"):
                 intensifier = 'archi-'
+                adjective = adjective.replace('archi', '')
+                lex_adjective = lex_adjective.replace('archi', '')
 
             # FRASE
             phrase_tagged = ' '.join(words)
