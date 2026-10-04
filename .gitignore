@@ -3,3 +3,7 @@ original_before_removing_header
 tagged
 text
 example_data
+.venv/
+__pycache__/
+.pytest_cache/
+re-words.txt
