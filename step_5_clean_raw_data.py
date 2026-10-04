@@ -72,7 +72,6 @@ def clean_data(input_folder, output_folder):
 
     print("Successfully cleaned data")
 
-clean_data("original", "text")
 
 
 # NOTE: COMMENT FOR IF YOU DONT WANT TO REMOVE FIRST 350 CHARS
@@ -115,4 +114,6 @@ def remove_text(input_folder, num_words_to_remove):
 
     print(f"Successfully deleted {num_words_to_remove} words from each file")
 
-remove_text("text", 350)
+if __name__ == "__main__":
+    clean_data("original", "text")
+    remove_text("text", 350)

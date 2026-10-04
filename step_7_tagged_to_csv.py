@@ -322,7 +322,7 @@ def analyze(input_path, output_filename):
     if data_frames:
         data = pd.concat(data_frames, ignore_index=True)
         # Save the DataFrame to a CSV file
-        data.to_csv(input_path + "\\temp.csv", index=False)
+        data.to_csv(os.path.join(input_path, "temp.csv"), index=False)
         print("Successfully concatenated data frames")
     else:
         print("No data frames to concatenate")
@@ -334,7 +334,7 @@ def analyze(input_path, output_filename):
     data = pd.concat(data_frames, ignore_index=True)
     
     # Check if the file exists before trying to delete it
-    os.remove(input_path + "\\temp.csv")
+    os.remove(os.path.join(input_path, "temp.csv"))
     
     print("Successfully created data")
     print("re- words saved to re-words.txt")
