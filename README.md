@@ -23,7 +23,12 @@ If you get errors or are confused you can email me (though I might be busy) or y
 uv run pytest
 ```
 
-The tests cover apocope and gender/number normalization, *-ísimo* and *archi-* handling, double intensifiers, negation, and predicative vs. attributive classification. Three tests are marked `xfail` because they document known bugs that would change token counts if fixed:
+The tests cover apocope and gender/number normalization, *-ísimo* and *archi-* handling, double intensifiers, negation, and predicative vs. attributive classification.
 
-- ADV-tagged intensifiers (*bastante*, *mucho*, ...) and *no* get emitted as their own adverb tokens.
-- The copula check is a substring match, so *es* inside *desde* marks the next adjective predicative.
+## Changes
+
+October 2026: fixed three extraction bugs. Spreadsheets made before this (including the data behind the *Proc. LSA* paper) used the old behavior.
+
+- ADV-tagged intensifiers (*bastante*, *mucho*, *casi*, ...) and *no* were emitted as their own adverb tokens.
+- Copula detection was a substring match, so *es* inside *desde* marked the next adjective predicative. It now matches whole words or the *estar*/*ser*/*parecer* lemma.
+- Noun detection checked for intensifiers by substring, so *re* inside *padre* made *padre rico* "ambiguous" instead of attributive.

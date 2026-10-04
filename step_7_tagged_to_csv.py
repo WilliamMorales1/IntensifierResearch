@@ -57,6 +57,7 @@ forms_of_parecer = ["parecer", "parecel",
                     "paracé", "pareced"]
 
 copulas = forms_of_estar + forms_of_ser + forms_of_parecer
+copula_lemmas = ["estar", "ser", "parecer"]
 
 
 def remove_SPACE(input_path):
@@ -118,8 +119,9 @@ def get_adj(word):
 
 def is_adv(word):
     adv_match = re.search(r'^(.*)_ADV_', word)
-    if adv_match and is_well_formed(word) and word not in intensifier_list:
-        return True
+    if adv_match and is_well_formed(word):
+        adverb = adv_match.group(1).lower()
+        return adverb not in intensifier_list and adverb != "no"
     return False
 
 def get_adv(word):
@@ -143,6 +145,10 @@ def get_int(word):
         intensifier = 'súper'
     return intensifier.lower()
 
+def is_copula(word):
+    parts = word.split('_')
+    return parts[0].lower() in copulas or (len(parts) >= 3 and parts[-1].lower() in copula_lemmas)
+
 def process_segment(segment, speaker):
     rows = []
     
@@ -163,7 +169,7 @@ def process_segment(segment, speaker):
             adjective, lex_adjective = get_adj(word)
             
             # noun adj
-            if i > 0 and "_NOUN_" in words[i-1] and not any(inter in words[i-1] for inter in intensifier_list):
+            if i > 0 and "_NOUN_" in words[i-1] and not is_int(words[i-1]):
                 attributive = "attributive"
                 noun = re.search(r'^(.*?)_', words[i-1]).group(1) # type: ignore
             # adj noun
@@ -171,15 +177,15 @@ def process_segment(segment, speaker):
                 attributive = "attributive"
                 noun = re.search(r'^(.*?)_', words[i+1]).group(1) # type: ignore
             # noun int adj
-            elif i > 1 and "_NOUN_" in words[i-2] and any(inter in words[i-1] for inter in intensifier_list):
+            elif i > 1 and "_NOUN_" in words[i-2] and is_int(words[i-1]):
                 attributive = "attributive"
                 noun = re.search(r'^(.*?)_', words[i-2]).group(1) # type: ignore
             # cop int adj
-            elif i > 1 and any(form in words[i-2] for form in copulas):
+            elif i > 1 and is_copula(words[i-2]):
                 attributive = "predicative"
                 noun = "/"
             # cop adj
-            elif i > 0 and any(form in words[i-1] for form in copulas):
+            elif i > 0 and is_copula(words[i-1]):
                 attributive = "predicative"
                 noun = "/"
             else:
