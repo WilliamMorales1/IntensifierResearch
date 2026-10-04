@@ -89,18 +89,31 @@ def test_adverb_host():
     assert [(r["Int"], r["Adv"]) for r in rows] == [("muy", "lejos")]
 
 
-@pytest.mark.xfail(strict=True, reason="is_adv compares the tagged word to intensifier_list, so ADV-tagged intensifiers become adverb tokens")
 def test_intensifier_is_not_counted_as_adverb_host():
     rows = process_segment("bastante_ADV_bastante lejos_ADV_lejos", "S01")
     assert [(r["Int"], r["Adv"]) for r in rows] == [("bastante", "lejos")]
 
 
-@pytest.mark.xfail(strict=True, reason="no_ADV_no passes is_adv and is emitted as an adverb token")
 def test_negation_is_not_counted_as_adverb_host():
     assert process_segment("no_ADV_no muy_ADV_muy bueno_ADJ_bueno", "S01") == []
 
 
-@pytest.mark.xfail(strict=True, reason="copula check is a substring match, so 'es' inside 'desde' marks the adjective predicative")
+def test_noun_match_ignores_intensifier_substrings():
+    # "re" is an intensifier and used to match inside "padre".
+    row = token("padre_NOUN_padre rico_ADJ_rico")
+    assert (row["Adj_type"], row["Noun"]) == ("attributive", "padre")
+
+
+def test_noun_intensifier_adjective():
+    row = token("tarde_NOUN_tarde re_ADV_re linda_ADJ_lindo")
+    assert (row["Int"], row["Adj_type"], row["Noun"]) == ("re", "attributive", "tarde")
+
+
+def test_copula_by_lemma():
+    row = token("estuvieron_AUX_estar contentos_ADJ_contento")
+    assert row["Adj_type"] == "predicative"
+
+
 def test_copula_match_is_whole_word():
     row = token("desde_ADP_desde interesante_ADJ_interesante")
     assert row["Adj_type"] == "ambiguous"
