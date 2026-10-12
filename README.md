@@ -13,7 +13,16 @@ Stuff you'll need: [uv](https://docs.astral.sh/uv/getting-started/installation/)
 5. Run `uv run step_5_clean_raw_data.py`.
 6. Place the text folder into TagAnt to create a tagged version of all the files (make sure that you use the Spanish model, not the English one). For the Display Information, select "word+pos_tag+lemma".
 7. Run `uv run step_7_tagged_to_csv.py`.
-8. Now you have an excel sheet with all the data. You can try making some graphs of the data using [Language Variation Suite](https://languagevariationsuite.shinyapps.io/Pages/) or anything else.
+8. Now you have an excel sheet with all the data, plus a `.sqlite` copy of the same data. You can try making some graphs of the data using [Language Variation Suite](https://languagevariationsuite.shinyapps.io/Pages/) or anything else.
+
+The SQLite file is about half the size of the CSV and stores each speaker, phrase and word once. To get the full table back in pandas:
+
+```python
+import sqlite3
+import pandas as pd
+
+df = pd.read_sql("SELECT * FROM intensifier_data", sqlite3.connect("intensifier_data_YYYY-MM-DD.sqlite"))
+```
 
 If you get errors or are confused you can email me (though I might be busy) or you could try to just copypaste the error and code into ChatGPT.
 

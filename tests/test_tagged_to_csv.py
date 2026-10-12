@@ -1,3 +1,6 @@
+import sqlite3
+
+import pandas as pd
 import pytest
 
 from step_7_tagged_to_csv import (
@@ -7,6 +10,7 @@ from step_7_tagged_to_csv import (
     get_adj,
     get_int,
     process_segment,
+    to_sqlite,
 )
 
 
@@ -128,3 +132,27 @@ def test_closest_verb():
     row = {"Phr_tagged": "ella_PRON_ella era_AUX_ser muy_ADV_muy alta_ADJ_alto", "Adj": "alta"}
     assert closest_verb_non_infinitive(row) == "era"
     assert closest_verb_infinitive(row) == "ser"
+
+
+def test_to_sqlite_round_trips(tmp_path):
+    df = pd.DataFrame({
+        "Corpus": ["Medellín", "Medellín", "Quijote"],
+        "Speaker": ["S01", "S01", None],
+        "Phr_tagged": ["es_AUX_ser muy_ADV_muy bueno_ADJ_bueno"] * 2 + ["casa_NOUN_casa bonita_ADJ_bonito"],
+        "Phr": ["es muy bueno"] * 2 + ["casa bonita"],
+        "Double": ["/", "/", None],
+        "Int": ["muy", "muy", "/"],
+        "Adj": ["bueno", "bueno", "bonito"],
+        "Adj_type": ["predicative", "predicative", "attributive"],
+        "Number": ["S01_01", "S01_02", "Quijote_01"],
+        "Syllable": [2, 2, 3],
+        "Age": [34.0, 34.0, None],
+        "Gender": ["mujer", "mujer", None],
+    })
+    path = tmp_path / "out.sqlite"
+    to_sqlite(df, path)
+    with sqlite3.connect(path) as con:
+        back = pd.read_sql("SELECT * FROM intensifier_data", con)
+        counts = {t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("source", "phrase", "token")}
+    pd.testing.assert_frame_equal(back, df, check_dtype=False)
+    assert counts == {"source": 2, "phrase": 2, "token": 3}

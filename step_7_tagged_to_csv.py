@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import re
+import sqlite3
 from datetime import date
 
 intensifier_list = ["absolutamente", "bastante", "casi", "completamente", "demasiado", "estrictamente",
@@ -508,6 +509,79 @@ def merge_speaker_data(id_df, int_df):
     return transformed_df
 
 
+# columns with few distinct words, stored once in a shared term table
+term_cols = ["Double", "Int", "Adv", "Adj", "Lex_Adj", "Adj_type", "Noun", "Verb", "Inf_Verb"]
+phrase_cols = ["Phr_tagged", "Phr"]
+token_cols = ["Number", "Syllable"]
+
+
+def _quote(name):
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+def _sql_values(df):
+    # sqlite3 can't bind numpy scalars or NaN
+    return [tuple(None if pd.isna(v) else v.item() if hasattr(v, "item") else v for v in row)
+            for row in df.itertuples(index=False)]
+
+
+def to_sqlite(df, output_filename):
+    """to_sqlite writes df as a normalized SQLite database whose intensifier_data view rebuilds df."""
+    terms = [c for c in term_cols if c in df]
+    phrases = [c for c in phrase_cols if c in df]
+    tokens = [c for c in token_cols if c in df]
+    # whatever is left is speaker metadata, which repeats on every row of a speaker
+    sources = [c for c in df if c not in terms + phrases + tokens]
+
+    source_id = df.groupby(sources, dropna=False, sort=False).ngroup() + 1
+    phrase_id = df.groupby(phrases, dropna=False, sort=False).ngroup() + 1
+    term_codes, term_text = pd.factorize(pd.concat([df[c] for c in terms]), use_na_sentinel=False)
+    term_ids = pd.DataFrame(term_codes.reshape(len(terms), len(df)).T + 1, columns=terms, index=df.index)
+
+    if os.path.exists(output_filename):
+        os.remove(output_filename)
+    con = sqlite3.connect(output_filename)
+
+    # untyped columns so ints, floats and text all come back as they went in
+    def create(table, cols, data):
+        con.execute(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, {', '.join(_quote(c) for c in cols)})")
+        con.executemany(f"INSERT INTO {table} VALUES ({', '.join('?' * (len(cols) + 1))})", _sql_values(data))
+
+    create("source", sources, df[sources].assign(id=source_id)[["id"] + sources].drop_duplicates("id"))
+    create("phrase", phrases, df[phrases].assign(id=phrase_id)[["id"] + phrases].drop_duplicates("id"))
+    create("term", ["text"], pd.DataFrame({"id": range(1, len(term_text) + 1), "text": term_text}))
+    token = pd.concat([pd.Series(range(1, len(df) + 1), index=df.index, name="id"),
+                       source_id.rename("source_id"), phrase_id.rename("phrase_id"),
+                       term_ids.add_suffix("_id"), df[tokens]], axis=1)
+    create("token", list(token.columns[1:]), token)
+
+    select, joins = [], []
+    for c in df:
+        if c in terms:
+            alias = _quote("t_" + c)
+            joins.append(f"JOIN term {alias} ON {alias}.id = k.{_quote(c + '_id')}")
+            select.append(f"{alias}.text AS {_quote(c)}")
+        else:
+            table = "s" if c in sources else "p" if c in phrases else "k"
+            select.append(f"{table}.{_quote(c)} AS {_quote(c)}")
+    con.execute(f"""CREATE VIEW intensifier_data AS
+        SELECT {', '.join(select)}
+        FROM token k
+        JOIN source s ON s.id = k.source_id
+        JOIN phrase p ON p.id = k.phrase_id
+        {' '.join(joins)}
+        ORDER BY k.id""")
+
+    con.execute("CREATE INDEX token_source ON token(source_id)")
+    for c in ("Int", "Adj_type"):
+        if c in terms:
+            con.execute(f"CREATE INDEX {_quote('token_' + c)} ON token({_quote(c + '_id')})")
+    con.commit()
+    con.execute("VACUUM")
+    con.close()
+    print(f"Saved SQLite database to {output_filename}")
+
+
 if __name__ == "__main__":
     input = "tagged/ALL_tagged"
     output = "intensifier_data_" + date.today().isoformat() + ".csv"
@@ -528,5 +602,6 @@ if __name__ == "__main__":
         df[col] = df[col].str.replace(',', '', regex=False)
     
     df.to_excel(output[:-4] + ".xlsx", index=False)
+    to_sqlite(df, output[:-4] + ".sqlite")
 
     print("Make sure to manually check the -ísimo cases!")
