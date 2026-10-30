@@ -9,6 +9,7 @@ from step_7_tagged_to_csv import (
     count_syllables,
     get_adj,
     get_int,
+    numero,
     process_segment,
     to_sqlite,
 )
@@ -132,6 +133,13 @@ def test_closest_verb():
     row = {"Phr_tagged": "ella_PRON_ella era_AUX_ser muy_ADV_muy alta_ADJ_alto", "Adj": "alta"}
     assert closest_verb_non_infinitive(row) == "era"
     assert closest_verb_infinitive(row) == "ser"
+
+
+def test_numero_counts_each_speaker_separately():
+    counts = {}
+    rows = [{"Speaker": "S01"}, {"Speaker": "S01"}, {"Speaker": "S02"}]
+
+    assert [numero(row, counts) for row in rows] == ["S01_01", "S01_02", "S02_01"]
 
 
 def test_to_sqlite_round_trips(tmp_path):

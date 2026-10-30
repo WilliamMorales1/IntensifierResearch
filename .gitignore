@@ -1,9 +1,13 @@
 original
 original_before_removing_header
 tagged
+stanza_tagged
 text
 example_data
 .venv/
 __pycache__/
 .pytest_cache/
 re-words.txt
+intensifier_data_stanza_*
+stanza_tagged_fixed
+tagger_disagreements.tsv

@@ -1,61 +1,219 @@
 import os
-import pandas as pd
 import re
 import sqlite3
 from datetime import date
 
-intensifier_list = ["absolutamente", "bastante", "casi", "completamente", "demasiado", "estrictamente",
-            "especialmente", "extremadamente", "harto", "increíblemente", "mucho",
-            "muy", "plenamente", "realmente", "sumamente", "súper", "totalmente", "verdaderamente",
-            "bien", "super", "supel", "re", "archi"]
+import pandas as pd
 
-apocope_dict = {'gran': 'grande',
-                'buen': 'bueno',
-                'cien': 'ciento',
-                'cualquier': 'cualquiero',
-                'cualesquier': 'cualesquiero',
-                'algún': 'alguno',
-                'mal': 'malo',
-                'ningún': 'ninguno',
-                'primer': 'primero',
-                'tercer': 'tercero',
-                'un': 'uno'}
+intensifier_list = [
+    "absolutamente",
+    "bastante",
+    "casi",
+    "completamente",
+    "demasiado",
+    "estrictamente",
+    "especialmente",
+    "extremadamente",
+    "harto",
+    "increíblemente",
+    "mucho",
+    "muy",
+    "plenamente",
+    "realmente",
+    "sumamente",
+    "súper",
+    "totalmente",
+    "verdaderamente",
+    "bien",
+    "super",
+    "supel",
+    "re",
+    "archi",
+]
 
-forms_of_estar = ["estar", "estal",
-                    "estoy", "estás", "está", "estamos", "estáis", "están",
-                    "estaba", "estabas", "estábamos", "estabais", "estaban",
-                    "estuve", "estuviste", "estuvo", "estuvimos", "estuvisteis", "estuvieron",
-                    "estaré", "estarás", "estará", "estaremos", "estaréis", "estarán",
-                    "estaría", "estarías", "estaría", "estaríamos", "estaríais", "estarían",
-                    "esté", "estés", "estemos", "estéis", "estén",
-                    "estuviera", "estuvieras", "estuviéramos", "estuvierais", "estuvieran",
-                    "estuviese", "estuvieses", "estuviésemos", "estuvieseis", "estuviesen",
-                    "estuviere", "estuvieres", "estuviéremos", "estuviereis", "estuvieren",
-                    "estad"]
+apocope_dict = {
+    "gran": "grande",
+    "buen": "bueno",
+    "cien": "ciento",
+    "cualquier": "cualquiero",
+    "cualesquier": "cualesquiero",
+    "algún": "alguno",
+    "mal": "malo",
+    "ningún": "ninguno",
+    "primer": "primero",
+    "tercer": "tercero",
+    "un": "uno",
+}
 
-forms_of_ser = ["ser", "sel",
-                "soy", "eres", "es", "somos", "sois", "son",
-                "era", "eras", "éramos", "erais", "eran",
-                "fui", "fuiste", "fue", "fuimos", "fuisteis", "fueron",
-                "seré", "serás", "será", "seremos", "seréis", "serán",
-                "sería", "serías", "sería", "seríamos", "seríais", "serían",
-                "sea", "seas", "seás", "seamos", "seáis", "sean",
-                "fuera", "fueras", "fuéramos", "fuerais", "fueran",
-                "fuese", "fueses", "fuésemos", "fueseis", "fuesen",
-                "fuere", "fueres", "fuéremos", "fuereis", "fueren",
-                "sé", "sed"]
+forms_of_estar = [
+    "estar",
+    "estal",
+    "estoy",
+    "estás",
+    "está",
+    "estamos",
+    "estáis",
+    "están",
+    "estaba",
+    "estabas",
+    "estábamos",
+    "estabais",
+    "estaban",
+    "estuve",
+    "estuviste",
+    "estuvo",
+    "estuvimos",
+    "estuvisteis",
+    "estuvieron",
+    "estaré",
+    "estarás",
+    "estará",
+    "estaremos",
+    "estaréis",
+    "estarán",
+    "estaría",
+    "estarías",
+    "estaría",
+    "estaríamos",
+    "estaríais",
+    "estarían",
+    "esté",
+    "estés",
+    "estemos",
+    "estéis",
+    "estén",
+    "estuviera",
+    "estuvieras",
+    "estuviéramos",
+    "estuvierais",
+    "estuvieran",
+    "estuviese",
+    "estuvieses",
+    "estuviésemos",
+    "estuvieseis",
+    "estuviesen",
+    "estuviere",
+    "estuvieres",
+    "estuviéremos",
+    "estuviereis",
+    "estuvieren",
+    "estad",
+]
 
-forms_of_parecer = ["parecer", "parecel",
-                    "parezco", "pareces", "parecés", "parece", "parecemos", "parecéis", "parecen",
-                    "parecía", "parecías", "parecíamos", "parecíais", "parecían",
-                    "parecí", "pareciste", "pareció", "parecimos", "parecisteis", "parecieron",
-                    "pareceré", "parecerás", "parecerá", "pareceremos", "pareceréis", "parecerán",
-                    "parecería", "parecerías", "parecería", "pareceríamos", "pareceríais", "parecerían",
-                    "parezca", "parezcas", "parezcás", "parezcamos", "parezcáis", "parezcan",
-                    "pareciera", "parecieras", "pareciéramos", "parecierais", "parecieran",
-                    "pareciese", "parecieses", "pareciésemos", "parecieseis", "pareciesen",
-                    "pareciere", "parecieres", "pareciéremos", "pareciereis", "parecieren",
-                    "paracé", "pareced"]
+forms_of_ser = [
+    "ser",
+    "sel",
+    "soy",
+    "eres",
+    "es",
+    "somos",
+    "sois",
+    "son",
+    "era",
+    "eras",
+    "éramos",
+    "erais",
+    "eran",
+    "fui",
+    "fuiste",
+    "fue",
+    "fuimos",
+    "fuisteis",
+    "fueron",
+    "seré",
+    "serás",
+    "será",
+    "seremos",
+    "seréis",
+    "serán",
+    "sería",
+    "serías",
+    "sería",
+    "seríamos",
+    "seríais",
+    "serían",
+    "sea",
+    "seas",
+    "seás",
+    "seamos",
+    "seáis",
+    "sean",
+    "fuera",
+    "fueras",
+    "fuéramos",
+    "fuerais",
+    "fueran",
+    "fuese",
+    "fueses",
+    "fuésemos",
+    "fueseis",
+    "fuesen",
+    "fuere",
+    "fueres",
+    "fuéremos",
+    "fuereis",
+    "fueren",
+    "sé",
+    "sed",
+]
+
+forms_of_parecer = [
+    "parecer",
+    "parecel",
+    "parezco",
+    "pareces",
+    "parecés",
+    "parece",
+    "parecemos",
+    "parecéis",
+    "parecen",
+    "parecía",
+    "parecías",
+    "parecíamos",
+    "parecíais",
+    "parecían",
+    "parecí",
+    "pareciste",
+    "pareció",
+    "parecimos",
+    "parecisteis",
+    "parecieron",
+    "pareceré",
+    "parecerás",
+    "parecerá",
+    "pareceremos",
+    "pareceréis",
+    "parecerán",
+    "parecería",
+    "parecerías",
+    "parecería",
+    "pareceríamos",
+    "pareceríais",
+    "parecerían",
+    "parezca",
+    "parezcas",
+    "parezcás",
+    "parezcamos",
+    "parezcáis",
+    "parezcan",
+    "pareciera",
+    "parecieras",
+    "pareciéramos",
+    "parecierais",
+    "parecieran",
+    "pareciese",
+    "parecieses",
+    "pareciésemos",
+    "parecieseis",
+    "pareciesen",
+    "pareciere",
+    "parecieres",
+    "pareciéremos",
+    "pareciereis",
+    "parecieren",
+    "paracé",
+    "pareced",
+]
 
 copulas = forms_of_estar + forms_of_ser + forms_of_parecer
 copula_lemmas = ["estar", "ser", "parecer"]
@@ -69,40 +227,46 @@ def remove_SPACE(input_path):
 
         # Loop through each file
         for file_name in files:
-            if file_name.endswith('.txt'):
+            if file_name.endswith(".txt"):
                 file_path = os.path.join(input_path, file_name)
 
                 # Read the content of the file with the detected encoding
-                with open(file_path, 'r', encoding="utf-8") as file:
+                with open(file_path, "r", encoding="utf-8") as file:
                     content = file.read()
 
                 # Replace _SPACE_ with an empty string
-                modified_content = content.replace('_SPACE_', '')
+                modified_content = content.replace("_SPACE_", "")
 
                 # Write the modified content back to the file
-                with open(file_path, 'w', encoding="utf-8") as file:
+                with open(file_path, "w", encoding="utf-8") as file:
                     file.write(modified_content)
 
+
 def is_well_formed(word):
-    if any(word.endswith(c) for c in 'oaeslndr') and re.match(r'^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑí]+$', word):
-        return True
-    else:
-        return False
+    return bool(
+        any(word.endswith(c) for c in "oaeslndr")
+        and re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑí]+$", word)
+    )
+
 
 def is_adj(word):
-    adj_match = re.search(r'^(.*)_ADJ_', word)
-    lex_adj_match = re.search(r'_ADJ_(.+)', word)
-    if adj_match and lex_adj_match and is_well_formed(word) and not(word.endswith('mente')):
-        return True
-    return False
+    adj_match = re.search(r"^(.*)_ADJ_", word)
+    lex_adj_match = re.search(r"_ADJ_(.+)", word)
+    return bool(
+        adj_match
+        and lex_adj_match
+        and is_well_formed(word)
+        and not word.endswith("mente")
+    )
+
 
 def get_adj(word):
-    adj_match = re.search(r'^(.*)_ADJ_', word)
-    adv_match = re.search(r'_ADJ_(.+)', word)
+    adj_match = re.search(r"^(.*)_ADJ_", word)
+    adv_match = re.search(r"_ADJ_(.+)", word)
 
-    adjective = adj_match.group(1) # type: ignore
-    lex_adjective = adv_match.group(1) # type: ignore
-    
+    adjective = adj_match.group(1)  # type: ignore
+    lex_adjective = adv_match.group(1)  # type: ignore
+
     # apocope corrections
     if lex_adjective in apocope_dict:
         lex_adjective = apocope_dict[lex_adjective]
@@ -110,7 +274,7 @@ def get_adj(word):
         lex_adjective = lex_adjective[:-1]
     if lex_adjective.endswith("a"):
         lex_adjective = lex_adjective[:-1] + "o"
-    
+
     # write re adjectives that could be with the re- intensifier
     if adjective.startswith("re"):
         with open("re-words.txt", "a", encoding="utf-8") as f:
@@ -118,41 +282,47 @@ def get_adj(word):
 
     return adjective.lower(), lex_adjective.lower()
 
+
 def is_adv(word):
-    adv_match = re.search(r'^(.*)_ADV_', word)
+    adv_match = re.search(r"^(.*)_ADV_", word)
     if adv_match and is_well_formed(word):
         adverb = adv_match.group(1).lower()
         return adverb not in intensifier_list and adverb != "no"
     return False
 
+
 def get_adv(word):
-    adv_match = re.search(r'^(.*)_ADV_', word)
-    adverb = adv_match.group(1) # type: ignore
+    adv_match = re.search(r"^(.*)_ADV_", word)
+    adverb = adv_match.group(1)  # type: ignore
     if adverb.startswith("re"):
         with open("re-words.txt", "a", encoding="utf-8") as f:
             f.write(adverb + "\n")
     return adverb.lower()
 
+
 def is_int(word):
-    int_match = re.search(r'^(.*?)_', word)
-    if int_match and int_match.group(1) in intensifier_list:
-        return True
-    return False
+    int_match = re.search(r"^(.*?)_", word)
+    return bool(int_match and int_match.group(1) in intensifier_list)
+
 
 def get_int(word):
-    int_match = re.search(r'^(.*?)_', word)
-    intensifier = int_match.group(1) # type: ignore
-    if intensifier == 'super' or intensifier == 'supel':
-        intensifier = 'súper'
+    int_match = re.search(r"^(.*?)_", word)
+    intensifier = int_match.group(1)  # type: ignore
+    if intensifier == "super" or intensifier == "supel":
+        intensifier = "súper"
     return intensifier.lower()
 
+
 def is_copula(word):
-    parts = word.split('_')
-    return parts[0].lower() in copulas or (len(parts) >= 3 and parts[-1].lower() in copula_lemmas)
+    parts = word.split("_")
+    return parts[0].lower() in copulas or (
+        len(parts) >= 3 and parts[-1].lower() in copula_lemmas
+    )
+
 
 def process_segment(segment, speaker):
     rows = []
-    
+
     intensifier = None
     adjective = None
     lex_adjective = None
@@ -168,115 +338,111 @@ def process_segment(segment, speaker):
         # bueno
         if is_adj(word):
             adjective, lex_adjective = get_adj(word)
-            
+
             # noun adj
-            if i > 0 and "_NOUN_" in words[i-1] and not is_int(words[i-1]):
+            if i > 0 and "_NOUN_" in words[i - 1] and not is_int(words[i - 1]):
                 attributive = "attributive"
-                noun = re.search(r'^(.*?)_', words[i-1]).group(1) # type: ignore
+                noun = re.search(r"^(.*?)_", words[i - 1]).group(1)  # type: ignore
             # adj noun
-            elif i < len(words) - 1 and "_NOUN_" in words[i+1]:
+            elif i < len(words) - 1 and "_NOUN_" in words[i + 1]:
                 attributive = "attributive"
-                noun = re.search(r'^(.*?)_', words[i+1]).group(1) # type: ignore
+                noun = re.search(r"^(.*?)_", words[i + 1]).group(1)  # type: ignore
             # noun int adj
-            elif i > 1 and "_NOUN_" in words[i-2] and is_int(words[i-1]):
+            elif i > 1 and "_NOUN_" in words[i - 2] and is_int(words[i - 1]):
                 attributive = "attributive"
-                noun = re.search(r'^(.*?)_', words[i-2]).group(1) # type: ignore
+                noun = re.search(r"^(.*?)_", words[i - 2]).group(1)  # type: ignore
             # cop int adj
-            elif i > 1 and is_copula(words[i-2]):
-                attributive = "predicative"
-                noun = "/"
-            # cop adj
-            elif i > 0 and is_copula(words[i-1]):
+            elif i > 1 and is_copula(words[i - 2]) or i > 0 and is_copula(words[i - 1]):
                 attributive = "predicative"
                 noun = "/"
             else:
                 attributive = "ambiguous"
                 noun = "/"
-            if not re.match(r'^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑ/]+$', noun):
+            if not re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑ/]+$", noun):
                 attributive = "ambiguous"
-                noun = "/" 
+                noun = "/"
 
             # muy bueno
-            if i > 0 and is_int(words[i-1]):
-                intensifier = get_int(words[i-1])
+            if i > 0 and is_int(words[i - 1]):
+                intensifier = get_int(words[i - 1])
                 # no muy bueno
-                if i > 1 and words[i-2] == "no_ADV_no":
+                if i > 1 and words[i - 2] == "no_ADV_no":
                     continue
                 # muy muy bueno
-                elif i > 1 and is_int(words[i-2]):
-                    double = get_int(words[i-2])
+                elif i > 1 and is_int(words[i - 2]):
+                    double = get_int(words[i - 2])
                 else:
-                    double = '/'
+                    double = "/"
             else:
-                intensifier = '/'
-                double = '/'
+                intensifier = "/"
+                double = "/"
 
             if lex_adjective.endswith("ísimo"):
-                intensifier = '-ísimo'
-                adjective = adjective.replace('quísim', 'c')
-                lex_adjective = lex_adjective.replace('quísim', 'c')
-                adjective = adjective.replace('guísim', 'g')
-                lex_adjective = lex_adjective.replace('guísim', 'g')
-                adjective = adjective.replace('ísim', '')
-                lex_adjective = lex_adjective.replace('ísim', '')
-            
+                intensifier = "-ísimo"
+                adjective = adjective.replace("quísim", "c")
+                lex_adjective = lex_adjective.replace("quísim", "c")
+                adjective = adjective.replace("guísim", "g")
+                lex_adjective = lex_adjective.replace("guísim", "g")
+                adjective = adjective.replace("ísim", "")
+                lex_adjective = lex_adjective.replace("ísim", "")
+
             if lex_adjective.startswith("archi"):
-                intensifier = 'archi-'
-                adjective = adjective.replace('archi', '')
-                lex_adjective = lex_adjective.replace('archi', '')
+                intensifier = "archi-"
+                adjective = adjective.replace("archi", "")
+                lex_adjective = lex_adjective.replace("archi", "")
 
             # FRASE
-            phrase_tagged = ' '.join(words)
-            phrase = ' '.join(re.sub(r'_.*', '', word) for word in words)
+            phrase_tagged = " ".join(words)
+            phrase = " ".join(re.sub(r"_.*", "", word) for word in words)
 
             row_data = {
-                'Speaker': speaker,
-                'Phr_tagged': phrase_tagged,
-                'Phr': phrase,
-                'Double': double,
-                'Int': intensifier,
-                'Adv': '/',
-                'Adj': adjective,
-                'Lex_Adj': lex_adjective,
-                'Adj_type': attributive,
-                'Noun': noun.lower(),
+                "Speaker": speaker,
+                "Phr_tagged": phrase_tagged,
+                "Phr": phrase,
+                "Double": double,
+                "Int": intensifier,
+                "Adv": "/",
+                "Adj": adjective,
+                "Lex_Adj": lex_adjective,
+                "Adj_type": attributive,
+                "Noun": noun.lower(),
             }
             rows.append(row_data)
 
         # IF NON-INT ADV
         if is_adv(word):
             adverb = get_adv(word)
-            
+
             # muy lejos
-            if i > 0 and is_int(words[i-1]):
-                intensifier = get_int(words[i-1])
+            if i > 0 and is_int(words[i - 1]):
+                intensifier = get_int(words[i - 1])
                 # no muy lejos
-                if i > 1 and words[i-2] == "no_ADV_no":
+                if i > 1 and words[i - 2] == "no_ADV_no":
                     continue
                 # muy muy lejos
-                elif i > 1 and is_int(words[i-2]):
-                    double = get_int(words[i-2])
+                elif i > 1 and is_int(words[i - 2]):
+                    double = get_int(words[i - 2])
                 else:
-                    double = '/'
+                    double = "/"
             else:
-                intensifier = '/'
-                double = '/'
-            
+                intensifier = "/"
+                double = "/"
+
             # FRASE REAL
-            phrase_tagged = ' '.join(words)
-            phrase = ' '.join(re.sub(r'_.*', '', word) for word in words)
+            phrase_tagged = " ".join(words)
+            phrase = " ".join(re.sub(r"_.*", "", word) for word in words)
 
             row_data = {
-                'Speaker': speaker,
-                'Phr_tagged': phrase_tagged,
-                'Phr': phrase,
-                'Double': double,
-                'Int': intensifier,
-                'Adv': adverb,
-                'Adj': '/',
-                'Lex_Adj': '/',
-                'Adj_type': '/',
-                'Noun': '/',
+                "Speaker": speaker,
+                "Phr_tagged": phrase_tagged,
+                "Phr": phrase,
+                "Double": double,
+                "Int": intensifier,
+                "Adv": adverb,
+                "Adj": "/",
+                "Lex_Adj": "/",
+                "Adj_type": "/",
+                "Noun": "/",
             }
             rows.append(row_data)
     return rows
@@ -306,16 +472,16 @@ def analyze(input_path, output_filename):
         # Read the marked text from the file
         with open(marked_file_path, "r", encoding="utf-8") as file:
             # Read entire file and replace all newlines
-            content = file.read().replace('\n', ' ')
+            content = file.read().replace("\n", " ")
 
             # Split the content into segments based on custom sentence-ending punctuation
-            segments = re.split(r'(?<=[,.!?]_PUNCT_[,.!?])', content)
+            segments = re.split(r"(?<=[,.!?]_PUNCT_[,.!?])", content)
 
             # Process each segment
             for segment in segments:
                 seg_rows = process_segment(segment, speaker)
                 rows.extend(seg_rows)
-        
+
         # Check if rows list is not empty
         if rows:
             # Create a DataFrame for the current file and append it to the list
@@ -335,14 +501,14 @@ def analyze(input_path, output_filename):
         print("No data frames to concatenate")
 
         # Create a DataFrame for the current file and append it to the list
-        data_frames.append(pd.DataFrame(rows))
+        data_frames.append(pd.DataFrame(rows))  # type: ignore
 
     # Concatenate all data frames in the list
     data = pd.concat(data_frames, ignore_index=True)
-    
+
     # Check if the file exists before trying to delete it
     os.remove(os.path.join(input_path, "temp.csv"))
-    
+
     print("Successfully created data")
     print("re- words saved to re-words.txt")
 
@@ -352,48 +518,49 @@ def analyze(input_path, output_filename):
 
 
 def closest_verb_non_infinitive(row):
-    phrase = row['Phr_tagged']
-    intensifier_pos = phrase.find(row['Adj'])
-    
+    phrase = row["Phr_tagged"]
+    intensifier_pos = phrase.find(row["Adj"])
+
     if intensifier_pos == -1:
-        return '/'
-    
+        return "/"
+
     # Find the sentence containing the intensifier
     # Split by periods and track positions
-    period_before = phrase.rfind('.', 0, intensifier_pos)
-    sentence_start = 0 if period_before == -1 else period_before + 1  # +1 to skip the period
-    sentence_end = phrase.find('.', intensifier_pos)
+    period_before = phrase.rfind(".", 0, intensifier_pos)
+    sentence_start = (
+        0 if period_before == -1 else period_before + 1
+    )  # +1 to skip the period
+    sentence_end = phrase.find(".", intensifier_pos)
     if sentence_end == -1:
         sentence_end = len(phrase)
-    
+
     sentence = phrase[sentence_start:sentence_end]
     # Adjust intensifier position relative to the sentence
     intensifier_pos_in_sentence = intensifier_pos - sentence_start
-    
+
     # Initialize minimum distances and closest matches
-    min_distance_verb = float('inf')
-    min_distance_aux = float('inf')
+    min_distance_verb = float("inf")
+    min_distance_aux = float("inf")
     closest_verb = None
     closest_aux = None
-    
+
     # Regular expression to find verb and auxiliary patterns
-    pattern = r'\b(\w+)_(VERB|AUX)_(\w+)\b'
-    
+    pattern = r"\b(\w+)_(VERB|AUX)_(\w+)\b"
+
     for match in re.finditer(pattern, sentence):
         start_pos = match.start()
         end_pos = match.end()
         match_center = (start_pos + end_pos) // 2
         distance = abs(match_center - intensifier_pos_in_sentence)
-        
-        if 'VERB' in match.group():
+
+        if "VERB" in match.group():
             if distance < min_distance_verb:
                 min_distance_verb = distance
                 closest_verb = match.group(1)
-        elif 'AUX' in match.group():
-            if distance < min_distance_aux:
-                min_distance_aux = distance
-                closest_aux = match.group(1)
-    
+        elif "AUX" in match.group() and distance < min_distance_aux:
+            min_distance_aux = distance
+            closest_aux = match.group(1)
+
     # Determine which is closer
     if closest_verb and closest_aux:
         return closest_verb if min_distance_verb < min_distance_aux else closest_aux
@@ -402,51 +569,50 @@ def closest_verb_non_infinitive(row):
     elif closest_aux:
         return closest_aux
     else:
-        return '/'
+        return "/"
 
 
 def closest_verb_infinitive(row):
-    phrase = row['Phr_tagged']
-    intensifier_pos = phrase.find(row['Adj'])
-    
+    phrase = row["Phr_tagged"]
+    intensifier_pos = phrase.find(row["Adj"])
+
     if intensifier_pos == -1:
-        return '/'
-    
+        return "/"
+
     # Find the sentence containing the intensifier
-    period_before = phrase.rfind('.', 0, intensifier_pos)
+    period_before = phrase.rfind(".", 0, intensifier_pos)
     sentence_start = 0 if period_before == -1 else period_before + 1
-    sentence_end = phrase.find('.', intensifier_pos)
+    sentence_end = phrase.find(".", intensifier_pos)
     if sentence_end == -1:
         sentence_end = len(phrase)
-    
+
     sentence = phrase[sentence_start:sentence_end]
     # Adjust intensifier position relative to the sentence
     intensifier_pos_in_sentence = intensifier_pos - sentence_start
-    
+
     # Initialize minimum distances and closest matches
-    min_distance_verb = float('inf')
-    min_distance_aux = float('inf')
+    min_distance_verb = float("inf")
+    min_distance_aux = float("inf")
     closest_verb = None
     closest_aux = None
-    
+
     # Regular expression to find verb and auxiliary patterns
-    pattern = r'\b(\w+)_(VERB|AUX)_(\w+)\b'
-    
+    pattern = r"\b(\w+)_(VERB|AUX)_(\w+)\b"
+
     for match in re.finditer(pattern, sentence):
         start_pos = match.start()
         end_pos = match.end()
         match_center = (start_pos + end_pos) // 2
         distance = abs(match_center - intensifier_pos_in_sentence)
-        
-        if 'VERB' in match.group():
+
+        if "VERB" in match.group():
             if distance < min_distance_verb:
                 min_distance_verb = distance
                 closest_verb = match.group(3)
-        elif 'AUX' in match.group():
-            if distance < min_distance_aux:
-                min_distance_aux = distance
-                closest_aux = match.group(3)
-    
+        elif "AUX" in match.group() and distance < min_distance_aux:
+            min_distance_aux = distance
+            closest_aux = match.group(3)
+
     # Determine which is closer
     if closest_verb and closest_aux:
         return closest_verb if min_distance_verb < min_distance_aux else closest_aux
@@ -455,30 +621,32 @@ def closest_verb_infinitive(row):
     elif closest_aux:
         return closest_aux
     else:
-        return '/'
+        return "/"
 
 
 # make numbered based on speaker col
-def numero(row, count_dict={}):
+def numero(row, count_dict=None):
     # Split the original label to get the speaker number
-    speaker_number = row['Speaker']
+    if count_dict is None:
+        count_dict = {}
+    speaker_number = row["Speaker"]
 
     # Update the count for this speaker number
     count_dict[speaker_number] = count_dict.get(speaker_number, 0) + 1
 
     # Generate the new label
-    new_label = f'{speaker_number}_{count_dict[speaker_number]:02d}'
+    new_label = f"{speaker_number}_{count_dict[speaker_number]:02d}"
     return new_label
 
 
 # add syl col
 def count_syllables(word):
     # Remove silent 'u' in gue/gui/que/qui unless it has a diaeresis (ü)
-    word = re.sub(r'gue|gui|que|qui', lambda m: m.group(0).replace('u', ''), word)
+    word = re.sub(r"gue|gui|que|qui", lambda m: m.group(0).replace("u", ""), word)
 
     # Count vowel groups (as a simple approximation of syllables)
-    syllables = re.findall(r'[aeiouáéíóúü]+', word)
-    
+    syllables = re.findall(r"[aeiouáéíóúü]+", word)
+
     return len(syllables)
 
 
@@ -487,8 +655,8 @@ def merge_speaker_data(id_df, int_df):
 
     # Iterate through each row in df
     for _, row in int_df.iterrows():
-        Speaker = row['Speaker']
-        id_row = id_df[id_df['Speaker'] == Speaker]
+        Speaker = row["Speaker"]
+        id_row = id_df[id_df["Speaker"] == Speaker]
 
         if not id_row.empty:
             # Convert id_row to a dict, excluding the Speaker column
@@ -501,16 +669,26 @@ def merge_speaker_data(id_df, int_df):
             for key, value in id_data.items():
                 if pd.notna(value):  # Only use id_data value if it's not null/NaN
                     merged_row[key] = value
-            
+
             transformed_data.append(merged_row)
 
     transformed_df = pd.DataFrame(transformed_data)
-    print(f"Speaker data merged into intensifer data")
+    print("Speaker data merged into intensifer data")
     return transformed_df
 
 
 # columns with few distinct words, stored once in a shared term table
-term_cols = ["Double", "Int", "Adv", "Adj", "Lex_Adj", "Adj_type", "Noun", "Verb", "Inf_Verb"]
+term_cols = [
+    "Double",
+    "Int",
+    "Adv",
+    "Adj",
+    "Lex_Adj",
+    "Adj_type",
+    "Noun",
+    "Verb",
+    "Inf_Verb",
+]
 phrase_cols = ["Phr_tagged", "Phr"]
 token_cols = ["Number", "Syllable"]
 
@@ -521,8 +699,12 @@ def _quote(name):
 
 def _sql_values(df):
     # sqlite3 can't bind numpy scalars or NaN
-    return [tuple(None if pd.isna(v) else v.item() if hasattr(v, "item") else v for v in row)
-            for row in df.itertuples(index=False)]
+    return [
+        tuple(
+            None if pd.isna(v) else v.item() if hasattr(v, "item") else v for v in row
+        )
+        for row in df.itertuples(index=False)
+    ]
 
 
 def to_sqlite(df, output_filename):
@@ -535,8 +717,12 @@ def to_sqlite(df, output_filename):
 
     source_id = df.groupby(sources, dropna=False, sort=False).ngroup() + 1
     phrase_id = df.groupby(phrases, dropna=False, sort=False).ngroup() + 1
-    term_codes, term_text = pd.factorize(pd.concat([df[c] for c in terms]), use_na_sentinel=False)
-    term_ids = pd.DataFrame(term_codes.reshape(len(terms), len(df)).T + 1, columns=terms, index=df.index)
+    term_codes, term_text = pd.factorize(
+        pd.concat([df[c] for c in terms]), use_na_sentinel=False
+    )
+    term_ids = pd.DataFrame(
+        term_codes.reshape(len(terms), len(df)).T + 1, columns=terms, index=df.index
+    )
 
     if os.path.exists(output_filename):
         os.remove(output_filename)
@@ -544,15 +730,39 @@ def to_sqlite(df, output_filename):
 
     # untyped columns so ints, floats and text all come back as they went in
     def create(table, cols, data):
-        con.execute(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, {', '.join(_quote(c) for c in cols)})")
-        con.executemany(f"INSERT INTO {table} VALUES ({', '.join('?' * (len(cols) + 1))})", _sql_values(data))
+        con.execute(
+            f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, {', '.join(_quote(c) for c in cols)})"
+        )
+        con.executemany(
+            f"INSERT INTO {table} VALUES ({', '.join('?' * (len(cols) + 1))})",
+            _sql_values(data),
+        )
 
-    create("source", sources, df[sources].assign(id=source_id)[["id"] + sources].drop_duplicates("id"))
-    create("phrase", phrases, df[phrases].assign(id=phrase_id)[["id"] + phrases].drop_duplicates("id"))
-    create("term", ["text"], pd.DataFrame({"id": range(1, len(term_text) + 1), "text": term_text}))
-    token = pd.concat([pd.Series(range(1, len(df) + 1), index=df.index, name="id"),
-                       source_id.rename("source_id"), phrase_id.rename("phrase_id"),
-                       term_ids.add_suffix("_id"), df[tokens]], axis=1)
+    create(
+        "source",
+        sources,
+        df[sources].assign(id=source_id)[["id"] + sources].drop_duplicates("id"),
+    )
+    create(
+        "phrase",
+        phrases,
+        df[phrases].assign(id=phrase_id)[["id"] + phrases].drop_duplicates("id"),
+    )
+    create(
+        "term",
+        ["text"],
+        pd.DataFrame({"id": range(1, len(term_text) + 1), "text": term_text}),
+    )
+    token = pd.concat(
+        [
+            pd.Series(range(1, len(df) + 1), index=df.index, name="id"),
+            source_id.rename("source_id"),
+            phrase_id.rename("phrase_id"),
+            term_ids.add_suffix("_id"),
+            df[tokens],
+        ],
+        axis=1,
+    )
     create("token", list(token.columns[1:]), token)
 
     select, joins = [], []
@@ -565,17 +775,19 @@ def to_sqlite(df, output_filename):
             table = "s" if c in sources else "p" if c in phrases else "k"
             select.append(f"{table}.{_quote(c)} AS {_quote(c)}")
     con.execute(f"""CREATE VIEW intensifier_data AS
-        SELECT {', '.join(select)}
+        SELECT {", ".join(select)}
         FROM token k
         JOIN source s ON s.id = k.source_id
         JOIN phrase p ON p.id = k.phrase_id
-        {' '.join(joins)}
+        {" ".join(joins)}
         ORDER BY k.id""")
 
     con.execute("CREATE INDEX token_source ON token(source_id)")
     for c in ("Int", "Adj_type"):
         if c in terms:
-            con.execute(f"CREATE INDEX {_quote('token_' + c)} ON token({_quote(c + '_id')})")
+            con.execute(
+                f"CREATE INDEX {_quote('token_' + c)} ON token({_quote(c + '_id')})"
+            )
     con.commit()
     con.execute("VACUUM")
     con.close()
@@ -583,24 +795,25 @@ def to_sqlite(df, output_filename):
 
 
 if __name__ == "__main__":
-    input = "tagged/ALL_tagged"
+    input = "tagged"
     output = "intensifier_data_" + date.today().isoformat() + ".csv"
-    speaker_df = pd.read_excel("speaker_data/speaker_data_ALL_2026-3-12.xlsx")
+    speaker_df = pd.read_excel("speaker_data_ALL_2026-3-12.xlsx")
 
-    remove_SPACE(input) # writes without space back to files
+    remove_SPACE(input)  # writes without space back to files
     df = analyze(input, output)
 
     # Apply the function to create the new column
-    df['Verb'] = df.apply(closest_verb_non_infinitive, axis=1)
-    df['Inf_Verb'] = df.apply(closest_verb_infinitive, axis=1)
-    df['Number'] = df.apply(numero, axis=1)
-    df['Syllable'] = df['Adj'].apply(count_syllables)
+    df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
+    df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
+    number_counts = {}
+    df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
+    df["Syllable"] = df["Adj"].apply(count_syllables)
     df = merge_speaker_data(speaker_df, df)
 
     for col in df.select_dtypes(include=[object]).columns:
         # replaces commas with empty string, can change to sum else if you want
-        df[col] = df[col].str.replace(',', '', regex=False)
-    
+        df[col] = df[col].str.replace(",", "", regex=False)
+
     df.to_excel(output[:-4] + ".xlsx", index=False)
     to_sqlite(df, output[:-4] + ".sqlite")
 

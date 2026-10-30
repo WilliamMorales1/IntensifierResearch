@@ -1,0 +1,10 @@
+name: intensifier-research
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - openpyxl>=3.1
+  - pandas>=2.0
+  - python-docx>=1.1
+  - stanza>=1.10
+  - pytest>=8
