@@ -218,6 +218,63 @@ forms_of_parecer = [
 copulas = forms_of_estar + forms_of_ser + forms_of_parecer
 copula_lemmas = ["estar", "ser", "parecer"]
 
+# fixed expressions without variation (*muy mejor is impossible, so mucho there is a quantifier)
+fixed_expressions = {
+    ("bien", "hecho"),
+    ("mucho", "más"),
+    ("mucho", "mas"),
+    ("mucho", "menos"),
+    ("mucho", "mejor"),
+    ("mucho", "peor"),
+    ("mucho", "mayor"),
+    ("mucho", "menor"),
+}
+
+# adverbs that can't be graded, so a preceding "intensifier" is a quantifier, approximator or another adverb
+non_gradable = {
+    "más",
+    "mas",
+    "menos",
+    "antes",
+    "después",
+    "siempre",
+    "nunca",
+    "jamás",
+    "también",
+    "tampoco",
+    "ya",
+    "entonces",
+    "entoes",
+    "donde",
+    "dónde",
+    "adonde",
+    "todavía",
+    "aún",
+    "ahora",
+    "ahorita",
+    "luego",
+    "solo",
+    "sólo",
+    "solamente",
+    "además",
+    "tan",
+    "obviamente",
+    "afortunadamente",
+    "desafortunadamente",
+    "probablemente",
+    "posiblemente",
+    "seguramente",
+    "últimamente",
+    "actualmente",
+    "anteriormente",
+    "prácticamente",
+    "simplemente",
+    "económicamente",
+}
+
+# endings that turn a host into a fuller form of the same word rather than completing a cut-off one
+inflection = re.compile(r"(e?s|[oa]s?|mente|(uc|it|ic|ísim)[oa]s?)")
+
 
 def remove_SPACE(input_path):
     # Check if the directory exists
@@ -272,7 +329,10 @@ def get_adj(word):
         lex_adjective = apocope_dict[lex_adjective]
     if lex_adjective.endswith("s") and lex_adjective != "lejos":
         lex_adjective = lex_adjective[:-1]
-    if lex_adjective.endswith("a"):
+    # TagAnt sometimes keeps the feminine lemma, and -dora/-tora/-sora come from masculine -or
+    if re.search(r"[dts]ora$", lex_adjective):
+        lex_adjective = lex_adjective[:-1]
+    elif lex_adjective.endswith("a"):
         lex_adjective = lex_adjective[:-1] + "o"
 
     # write re adjectives that could be with the re- intensifier
@@ -300,6 +360,20 @@ def get_adv(word):
     return adverb.lower()
 
 
+def is_fragment(words, i):
+    """is_fragment reports whether words[i] is a cut-off word the speaker restarts, like "bue" in "muy bue muy bueno"."""
+    host = words[i].split("_")[0].lower()
+    if len(host) <= 2:
+        return host not in ("ya", "sí", "ni")
+    if len(host) > 4:
+        return False
+    for word in words[i + 1 : i + 5]:
+        later = word.split("_")[0].lower()
+        if later.startswith(host) and not inflection.fullmatch(later[len(host) :]):
+            return later != host
+    return False
+
+
 def is_int(word):
     int_match = re.search(r"^(.*?)_", word)
     return bool(int_match and int_match.group(1) in intensifier_list)
@@ -311,6 +385,11 @@ def get_int(word):
     if intensifier == "super" or intensifier == "supel":
         intensifier = "súper"
     return intensifier.lower()
+
+
+def is_mas_bien(words, i):
+    # "más bien" means "rather", so bien there is not an intensifier
+    return i > 1 and words[i - 1].split("_")[0].lower() == "bien" and words[i - 2].split("_")[0].lower() in ("más", "mas")
 
 
 def is_copula(word):
@@ -336,7 +415,7 @@ def process_segment(segment, speaker):
     # Process each word in the segment
     for i, word in enumerate(words):
         # bueno
-        if is_adj(word):
+        if is_adj(word) and not is_fragment(words, i):
             adjective, lex_adjective = get_adj(word)
 
             # noun adj
@@ -363,10 +442,12 @@ def process_segment(segment, speaker):
                 noun = "/"
 
             # muy bueno
-            if i > 0 and is_int(words[i - 1]):
+            if i > 0 and is_int(words[i - 1]) and not is_mas_bien(words, i):
                 intensifier = get_int(words[i - 1])
                 # no muy bueno
                 if i > 1 and words[i - 2] == "no_ADV_no":
+                    continue
+                if (intensifier, lex_adjective) in fixed_expressions:
                     continue
                 # muy muy bueno
                 elif i > 1 and is_int(words[i - 2]):
@@ -378,6 +459,9 @@ def process_segment(segment, speaker):
                 double = "/"
 
             if lex_adjective.endswith("ísimo"):
+                # muchísimos is a quantifier TagAnt calls ADJ
+                if lex_adjective.startswith("muchísim"):
+                    continue
                 intensifier = "-ísimo"
                 adjective = adjective.replace("quísim", "c")
                 lex_adjective = lex_adjective.replace("quísim", "c")
@@ -410,14 +494,19 @@ def process_segment(segment, speaker):
             rows.append(row_data)
 
         # IF NON-INT ADV
-        if is_adv(word):
+        if is_adv(word) and not is_fragment(words, i):
             adverb = get_adv(word)
+            # muchísimo is the intensifier mucho itself, not a host
+            if adverb.startswith("muchísim"):
+                continue
 
             # muy lejos
-            if i > 0 and is_int(words[i - 1]):
+            if i > 0 and is_int(words[i - 1]) and not is_mas_bien(words, i):
                 intensifier = get_int(words[i - 1])
                 # no muy lejos
                 if i > 1 and words[i - 2] == "no_ADV_no":
+                    continue
+                if adverb in non_gradable or (intensifier, adverb) in fixed_expressions:
                     continue
                 # muy muy lejos
                 elif i > 1 and is_int(words[i - 2]):

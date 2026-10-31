@@ -32,7 +32,7 @@ You can skip TagAnt (steps 6 and 7) and let [Stanza](https://stanfordnlp.github.
 python step_7_stanza_to_csv.py
 ```
 
-It reads the raw transcripts in `text`, saves the Stanza tags to `stanza_tagged` (so a rerun only tags new files) and writes `intensifier_data_stanza_YYYY-MM-DD.xlsx`/`.sqlite` with the same columns as step 7. The first run downloads the Spanish models (~130 MB). If you only have TagAnt output, `python step_6_untag.py` turns `tagged` back into raw text in `text` first.
+It reads the raw transcripts in `text`, saves the Stanza tags to `stanza_tagged` (so a rerun only tags new files), fixes a closed list of known Stanza errors (discourse *bueno*/*claro*, *muy poco*, *San*/*Santa*, participle lemmas, ...) into a copy in `stanza_corrected` (change it with `--corrected`), and writes `intensifier_data_stanza_YYYY-MM-DD.xlsx`/`.sqlite` from that copy with the same columns as step 7. The raw tags in `stanza_tagged` are never edited. See `tagger_comparison.md` for why each correction exists. The first run downloads the Spanish models (~130 MB). If you only have TagAnt output, `python step_6_untag.py` turns `tagged` back into raw text in `text` first.
 
 If you get errors or are confused you can email me (though I might be busy) or you could try to just copypaste the error and code into ChatGPT.
 
@@ -51,4 +51,5 @@ October 2026: fixed three extraction bugs. Spreadsheets made before this (includ
 
 - ADV-tagged intensifiers (*bastante*, *mucho*, *casi*, ...) and *no* were emitted as their own adverb tokens.
 - Copula detection was a substring match, so *es* inside *desde* marked the next adjective predicative. It now matches whole words or the *estar*/*ser*/*parecer* lemma.
+- Later in October 2026: fixed expressions (*bien hecho*, *mucho más/menos/mejor/peor/mayor/menor*), non-gradable adverb hosts (*casi siempre*, *mucho también*, *mucho donde*) and disfluency fragments (*muy bue muy bueno*) are dropped; *más bien* no longer counts *bien* as an intensifier; *acogedora* no longer becomes *acogedoro*.
 - Noun detection checked for intensifiers by substring, so *re* inside *padre* made *padre rico* "ambiguous" instead of attributive.

@@ -164,3 +164,82 @@ def test_to_sqlite_round_trips(tmp_path):
         counts = {t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("source", "phrase", "token")}
     pd.testing.assert_frame_equal(back, df, check_dtype=False)
     assert counts == {"source": 2, "phrase": 2, "token": 3}
+
+
+@pytest.mark.parametrize(
+    ("tagged", "lex"),
+    [
+        ("acogedora_ADJ_acogedora", "acogedor"),
+        ("colaboradoras_ADJ_colaboradora", "colaborador"),
+        ("conservadora_ADJ_conservador", "conservador"),
+        ("sonora_ADJ_sonora", "sonoro"),
+    ],
+)
+def test_get_adj_feminine_or_lemma(tagged, lex):
+    assert get_adj(tagged)[1] == lex
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "está_AUX_estar bien_ADV_bien hecho_ADJ_hecho",
+        "es_AUX_ser mucho_ADV_mucho mejor_ADJ_mejor",
+        "mucho_ADV_mucho mayores_ADJ_mayor",
+        "mucho_PRON_mucho más_ADV_más",
+        "mucho_PRON_mucho menos_ADV_menos",
+    ],
+)
+def test_fixed_expressions_dropped(segment):
+    assert process_segment(segment, "S01") == []
+
+
+def test_fixed_expression_only_with_its_intensifier():
+    row = token("está_AUX_estar muy_ADV_muy hecho_ADJ_hecho")
+    assert (row["Int"], row["Lex_Adj"]) == ("muy", "hecho")
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "casi_ADV_casi siempre_ADV_siempre",
+        "casi_ADV_casi nunca_ADV_nunca",
+        "mucho_PRON_mucho también_ADV_también",
+        "hay_VERB_haber mucho_PRON_mucho donde_ADV_donde divertirse_VERB_divertir",
+        "bastante_PRON_bastante donde_ADV_donde",
+        "bien_ADV_bien ya_ADV_ya",
+        "mucho_ADV_mucho antes_ADV_antes",
+    ],
+)
+def test_non_gradable_adverb_hosts_dropped(segment):
+    assert [r for r in process_segment(segment, "S01") if r["Int"] != "/"] == []
+
+
+def test_non_gradable_adverb_kept_bare():
+    assert [(r["Int"], r["Adv"]) for r in process_segment("siempre_ADV_siempre", "S01")] == [("/", "siempre")]
+
+
+def test_mas_bien_is_not_intensified():
+    rows = process_segment("es_AUX_ser más_ADV_más bien_ADV_bien pequeño_ADJ_pequeño", "S01")
+    assert [(r["Int"], r["Double"], r["Adj"]) for r in rows if r["Adj"] != "/"] == [("/", "/", "pequeño")]
+
+
+@pytest.mark.parametrize(
+    ("segment", "hosts"),
+    [
+        ("muy_ADV_muy bue_ADJ_bue muy_ADV_muy bueno_ADJ_bueno", ["bueno"]),
+        ("muy_ADV_muy d_ADJ_d muy_ADV_muy rápido_ADJ_rápido", ["rápido"]),
+        ("muy_ADV_muy ca_ADJ_ca era_AUX_ser muy_ADV_muy calmado_ADJ_calmado", ["calmado"]),
+        ("muy_ADV_muy cer_ADV_cer cerca_ADV_cerca", ["cerca"]),
+        ("muy_ADV_muy poco_ADV_poco ,_PUNCT_, muy_ADV_muy pocos_DET_poco", ["poco"]),
+        ("muy_ADV_muy mal_ADV_mal lo_PRON_él único_ADJ_único maluco_ADJ_maluco", ["mal", "único", "maluco"]),
+        ("muy_ADV_muy rico_ADJ_rico ,_PUNCT_, muy_ADV_muy rico_ADJ_rico", ["rico", "rico"]),
+    ],
+)
+def test_disfluency_fragments_dropped(segment, hosts):
+    rows = process_segment(segment, "S01")
+    assert [r["Adj"] if r["Adj"] != "/" else r["Adv"] for r in rows] == hosts
+
+
+def test_isimo_quantifier_dropped():
+    assert process_segment("muchísimas_ADJ_muchísimo cosas_NOUN_cosa", "S01") == []
+    assert process_segment("me_PRON_yo gusta_VERB_gustar muchísimo_ADV_muchísimo", "S01") == []
