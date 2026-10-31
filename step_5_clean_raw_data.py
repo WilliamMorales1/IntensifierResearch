@@ -5,6 +5,8 @@ import subprocess
 import re
 from docx import Document
 
+from step_7_tagged_to_csv import remove_other_turns
+
 def convert_doc_docx(input_folder, output_folder):
     # Create the output folder if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
@@ -17,6 +19,21 @@ def convert_doc_docx(input_folder, output_folder):
 
             # Use LibreOffice to convert .doc to .docx
             subprocess.run(['libreoffice', '--headless', '--convert-to', 'docx', doc_path, '--outdir', output_folder])
+
+# turn labels left inside a turn ("J: -pues", "E: ¿cómo?", "LMP: -si", "G.: hasta luego")
+speaker_label = re.compile(r"(?<!\w)[A-ZÁÉÍÓÚÑ]{1,3}\.?\s?:\s*-?\s*")
+turn_label = re.compile(r"(?<!\w)([A-ZÁÉÍÓÚÑ]{1,3})\.?\s?:")
+turn_question = re.compile(r"[^?\n]*?\?(?:[\s,.]{0,3}¿[^?\n]*\?)*")
+
+
+def strip_speaker_labels(text):
+    return speaker_label.sub("", text)
+
+
+def clean_turns(text):
+    """clean_turns drops interviewer and third-voice turns, then the participant's own labels."""
+    return strip_speaker_labels(remove_other_turns(text, turn_label, turn_question))
+
 
 def clean_data(input_folder, output_folder):
     # Ensure the output folder exists
@@ -62,7 +79,7 @@ def clean_data(input_folder, output_folder):
                 filtered_sequences = (re.findall(r"A:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL))
 
             # Join into one string (not line-based anymore, unless you want separators)
-            modified_content = "\n".join(filtered_sequences)
+            modified_content = clean_turns("\n".join(filtered_sequences))
             modified_content = modified_content.replace(":", "")
             modified_content = re.sub(r"\bA\s+", '', modified_content)
 

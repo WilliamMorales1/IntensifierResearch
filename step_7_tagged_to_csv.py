@@ -1,6 +1,8 @@
+import bisect
 import os
 import re
 import sqlite3
+from collections import Counter
 from datetime import date
 
 import pandas as pd
@@ -274,6 +276,12 @@ non_gradable = {
 
 # endings that turn a host into a fuller form of the same word rather than completing a cut-off one
 inflection = re.compile(r"(e?s|[oa]s?|mente|(uc|it|ic|ísim)[oa]s?)")
+# transcript speaker labels ("J: -pues") that step 5 missed; TagAnt glues the dash onto the next word
+speaker_label = re.compile(r"(?<!\S)[A-ZÁÉÍÓÚÑ]{1,3}\.?_[A-Z]+_\S* :_PUNCT_:(?: -_PUNCT_-)?(?: -(\S+?)_([A-Z]+)_-?(\S*))?")
+turn_label = re.compile(r"(?<!\S)([A-ZÁÉÍÓÚÑ]{1,3})\.?_[A-Z]+_\S* :_PUNCT_:")
+turn_question = re.compile(r".*?\?_PUNCT_\?(?:\s+(?:[,.]_PUNCT_[,.]\s+)?¿_PUNCT_¿.*?\?_PUNCT_\?)*")
+# transcribers also mark a third voice inside the participant's turn: "F: -(tercera voz) sigue"
+third_voice = re.compile(r"\s*\S*?tercera voz")
 
 
 def remove_SPACE(input_path):
@@ -297,6 +305,39 @@ def remove_SPACE(input_path):
                 # Write the modified content back to the file
                 with open(file_path, "w", encoding="utf-8") as file:
                     file.write(modified_content)
+
+
+def remove_other_turns(text, label=turn_label, question=turn_question):
+    """remove_other_turns drops every labeled turn not spoken by the participant (interviewer, third voices)."""
+    matches = list(label.finditer(text))
+    names = Counter(m[1] for m in matches)
+    # one-line transcripts run the participant's answer on after the question ("E: ¿cómo? difícil, ...");
+    # in line-based ones every labeled line is someone else (interviewer, relative, radio)
+    inline = text.count("\n") < 10
+    keep = None
+    if inline:
+        # "I:" is the informant; otherwise a label used throughout marks the participant's own turns
+        keep = "I" if "I" in names else next((n for n, c in names.most_common(1) if c >= 20), None)
+    out, pos = [], 0
+    for k, m in enumerate(matches):
+        if (m[1] == keep and not third_voice.match(text, m.end())) or m.start() < pos:
+            continue
+        end = matches[k + 1].start() if k + 1 < len(matches) else len(text)
+        eol = text.find("\n", m.end())
+        if eol != -1:
+            end = min(end, eol)
+        # the interviewer's turn ends with its question(s): "E.: a, se nota ¿no? ¿cuántos años llevan juntos?, me decía ..."
+        q = question.match(text, m.end(), end) if inline else None
+        if q:
+            end = min(end, q.end())
+        out.append(text[pos : m.start()])
+        pos = end
+    out.append(text[pos:])
+    return "".join(out)
+
+
+def strip_speaker_labels(content):
+    return speaker_label.sub(lambda m: f"{m[1]}_{m[2]}_{m[3]}" if m[1] else "", content)
 
 
 def is_well_formed(word):
@@ -399,7 +440,15 @@ def is_copula(word):
     )
 
 
-def process_segment(segment, speaker):
+def add_verb(row_data, relations, words):
+    # like Noun, the verb must be visible in Phr; the parse can reach past the segment
+    visible = relations and relations.verb.lower() in (w.split("_")[0].lower() for w in words)
+    row_data["Verb"] = relations.verb if visible else "/"
+    row_data["Inf_Verb"] = relations.inf_verb if visible else "/"
+
+
+def process_segment(segment, speaker, parse=None):
+    """process_segment extracts host rows; parse, when given, holds a Relations or None per word."""
     rows = []
 
     intensifier = None
@@ -418,8 +467,15 @@ def process_segment(segment, speaker):
         if is_adj(word) and not is_fragment(words, i):
             adjective, lex_adjective = get_adj(word)
 
+            if parse and parse[i]:
+                attributive, noun = parse[i].adj_type, parse[i].noun
+                # the parse spans past the segment, but the noun must be visible in Phr
+                if noun != "/" and noun.lower() not in (w.split("_")[0].lower() for w in words):
+                    noun = "/"
+                    if attributive == "attributive":
+                        attributive = "ambiguous"
             # noun adj
-            if i > 0 and "_NOUN_" in words[i - 1] and not is_int(words[i - 1]):
+            elif i > 0 and "_NOUN_" in words[i - 1] and not is_int(words[i - 1]):
                 attributive = "attributive"
                 noun = re.search(r"^(.*?)_", words[i - 1]).group(1)  # type: ignore
             # adj noun
@@ -491,6 +547,8 @@ def process_segment(segment, speaker):
                 "Adj_type": attributive,
                 "Noun": noun.lower(),
             }
+            if parse is not None:
+                add_verb(row_data, parse[i], words)
             rows.append(row_data)
 
         # IF NON-INT ADV
@@ -533,11 +591,14 @@ def process_segment(segment, speaker):
                 "Adj_type": "/",
                 "Noun": "/",
             }
+            if parse is not None:
+                add_verb(row_data, parse[i], words)
             rows.append(row_data)
     return rows
 
 
-def analyze(input_path, output_filename):
+def analyze(input_path, output_filename, parses=None):
+    """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
     # no mas, tan
     # Create a list to store data frames
     data_frames = []
@@ -561,14 +622,28 @@ def analyze(input_path, output_filename):
         # Read the marked text from the file
         with open(marked_file_path, "r", encoding="utf-8") as file:
             # Read entire file and replace all newlines
-            content = file.read().replace("\n", " ")
+            content = strip_speaker_labels(remove_other_turns(file.read()).replace("\n", " "))
 
             # Split the content into segments based on custom sentence-ending punctuation
             segments = re.split(r"(?<=[,.!?]_PUNCT_[,.!?])", content)
 
+            parse = parses(filename) if parses else None
+            starts = [m.start() for m in re.finditer(r"\S+", content)]
+            if parse is not None and len(parse) != len(starts):
+                raise ValueError(f"{filename}: parse has {len(parse)} tokens, tags have {len(starts)}")
+
             # Process each segment
+            offset = 0
             for segment in segments:
-                seg_rows = process_segment(segment, speaker)
+                seg_parse = None
+                if parse is not None:
+                    # the split can fall inside a token ("..._PUNCT_..."), so map by character offset
+                    seg_parse = [
+                        parse[bisect.bisect_right(starts, offset + m.start()) - 1]
+                        for m in re.finditer(r"\S+", segment)
+                    ]
+                offset += len(segment)
+                seg_rows = process_segment(segment, speaker, seg_parse)
                 rows.extend(seg_rows)
 
         # Check if rows list is not empty

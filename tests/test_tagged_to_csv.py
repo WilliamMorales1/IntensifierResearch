@@ -4,6 +4,8 @@ import pandas as pd
 import pytest
 
 from step_7_tagged_to_csv import (
+    remove_other_turns,
+    strip_speaker_labels,
     closest_verb_infinitive,
     closest_verb_non_infinitive,
     count_syllables,
@@ -243,3 +245,35 @@ def test_disfluency_fragments_dropped(segment, hosts):
 def test_isimo_quantifier_dropped():
     assert process_segment("muchísimas_ADJ_muchísimo cosas_NOUN_cosa", "S01") == []
     assert process_segment("me_PRON_yo gusta_VERB_gustar muchísimo_ADV_muchísimo", "S01") == []
+
+
+@pytest.mark.parametrize(
+    ("content", "clean"),
+    [
+        ("vida_NOUN_vida J_PROPN_J :_PUNCT_: -pues_ADV_-pues fue_AUX_ser", "vida_NOUN_vida pues_ADV_pues fue_AUX_ser"),
+        ("LMP_PROPN_LMP :_PUNCT_: -_PUNCT_- si_INTJ_si", "si_INTJ_si"),
+        ("E_NOUN_e :_PUNCT_: ¿_PUNCT_¿ cómo_PRON_cómo", "¿_PUNCT_¿ cómo_PRON_cómo"),
+        ("hora_NOUN_hora :_PUNCT_: las_DET_el", "hora_NOUN_hora :_PUNCT_: las_DET_el"),
+    ],
+)
+def test_strip_speaker_labels(content, clean):
+    assert strip_speaker_labels(content).split() == clean.split()
+
+
+def test_remove_other_turns_on_tagged_lines():
+    lines = ["x_NOUN_x"] * 10 + [
+        "E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ y_CCONJ_y cómo_PRON_cómo ?_PUNCT_?",
+        "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
+    ]
+    assert remove_other_turns("\n".join(lines)).split("\n")[10:] == ["", "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo"]
+
+
+def test_remove_other_turns_on_tagged_inline_question():
+    line = "comento_VERB_comentar E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ cómo_PRON_cómo ?_PUNCT_? difícil_ADJ_difícil"
+    assert remove_other_turns(line).split() == ["comento_VERB_comentar", "difícil_ADJ_difícil"]
+
+
+def test_remove_other_turns_drops_tagged_third_voice():
+    line = " ".join(["F_PROPN_F :_PUNCT_: -sí_INTJ_-sí"] * 20) + " F_PROPN_F :_PUNCT_: -(tercera_NOUN_-(tercera voz_NOUN_voz )_PUNCT_) sigue_VERB_seguir F_PROPN_F :_PUNCT_: -yo_PRON_-yo"
+    assert "sigue_VERB_seguir" not in remove_other_turns(line)
+    assert remove_other_turns(line).endswith("-yo_PRON_-yo")

@@ -3,7 +3,18 @@ from types import SimpleNamespace
 import pytest
 
 from step_6_untag import untag, untag_line
-from step_7_stanza_to_csv import correct_folder, correct_line, join_paragraphs, tag_doc, tag_word
+from step_7_stanza_to_csv import (
+    chunk_sentence,
+    correct_folder,
+    correct_line,
+    join_paragraphs,
+    parse_relations,
+    read_conllu,
+    sentence_relations,
+    tag_doc,
+    tag_word,
+)
+from step_7_tagged_to_csv import analyze
 
 
 def test_untag_line_restores_raw_text():
@@ -128,3 +139,166 @@ def test_correct_folder_leaves_raw_tags(tmp_path):
 
     assert (raw / "S01.txt").read_text(encoding="utf-8") == "muy_ADV_mucho poco_PRON_poco\n"
     assert (out / "S01.txt").read_text(encoding="utf-8") == "muy_ADV_mucho poco_ADV_poco\n"
+
+
+def test_chunk_sentence_cuts_at_punctuation():
+    tokens = [("a", "NOUN", "a")] * 3 + [(",", "PUNCT", ",")] + [("b", "NOUN", "b")] * 3 + [(",", "PUNCT", ",")]
+    assert [len(c) for c in chunk_sentence(tokens, size=5)] == [4, 4]
+    assert [len(c) for c in chunk_sentence(tokens, size=8)] == [8]
+
+
+def test_chunk_sentence_cuts_long_clause_hard():
+    tokens = [("a", "NOUN", "a")] * 12
+    assert [len(c) for c in chunk_sentence(tokens, size=5)] == [5, 5, 2]
+
+
+def conllu(*rows):
+    return "\n".join("\t".join([str(i), t, l, u, "_", "_", str(h), d, "_", "_"]) for i, (t, u, l, h, d) in enumerate(rows, 1)) + "\n\n"
+
+
+# la casa es muy bonita y grande , lo veo muy feo
+parsed = conllu(
+    ("la", "DET", "el", 2, "det"),
+    ("casa", "NOUN", "casa", 5, "nsubj"),
+    ("es", "AUX", "ser", 5, "cop"),
+    ("muy", "ADV", "mucho", 5, "advmod"),
+    ("bonita", "ADJ", "bonito", 0, "root"),
+    ("y", "CCONJ", "y", 7, "cc"),
+    ("grande", "ADJ", "grande", 5, "conj"),
+    (",", "PUNCT", ",", 5, "punct"),
+) + conllu(
+    ("lo", "PRON", "él", 2, "obj"),
+    ("veo", "VERB", "ver", 0, "root"),
+    ("muy", "ADV", "mucho", 4, "advmod"),
+    ("feo", "ADJ", "feo", 2, "xcomp"),
+) + conllu(
+    ("vivo", "VERB", "vivir", 0, "root"),
+    ("en", "ADP", "en", 3, "case"),
+    ("casas", "NOUN", "casa", 1, "obl"),
+    ("muy", "ADV", "mucho", 5, "advmod"),
+    ("viejas", "ADJ", "viejo", 3, "amod"),
+    ("bien", "ADV", "bien", 7, "advmod"),
+    ("lejos", "ADV", "lejos", 1, "advmod"),
+)
+
+
+def test_sentence_relations(tmp_path):
+    (tmp_path / "S01.conllu").write_text(parsed, encoding="utf-8")
+    first, second, third = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
+    assert first[4] == ("predicative", "casa", "es", "ser")
+    assert first[6] == ("predicative", "casa", "es", "ser")
+    assert first[3] == ("/", "/", "es", "ser")
+    assert first[1] is None
+    # object is a pronoun, so no noun
+    assert second[3] == ("predicative", "/", "veo", "ver")
+    assert third[4] == ("attributive", "casas", "vivo", "vivir")
+    assert third[6] == ("/", "/", "vivo", "vivir")
+
+
+def test_predicative_subject_is_nearest(tmp_path):
+    # yo fui peleonera , medallas: the parser also hangs a later noun on the adjective
+    (tmp_path / "S01.conllu").write_text(conllu(
+        ("yo", "PRON", "yo", 3, "nsubj"),
+        ("fui", "AUX", "ser", 3, "cop"),
+        ("peleonera", "ADJ", "peleonero", 0, "root"),
+        (",", "PUNCT", ",", 5, "punct"),
+        ("medallas", "NOUN", "medalla", 3, "nsubj"),
+    ), encoding="utf-8")
+    (sent,) = read_conllu(tmp_path / "S01.conllu")
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser")
+
+
+def test_analyze_reads_relations_from_parse(tmp_path):
+    tagged, out = tmp_path / "tagged", tmp_path / "parsed"
+    tagged.mkdir()
+    out.mkdir()
+    (out / "S01.conllu").write_text(parsed, encoding="utf-8")
+    words = [(t, u, l) for s in read_conllu(out / "S01.conllu") for _, t, u, l, _, _ in s]
+    # attributive casas viejas is not adjacent in word order to the verb "vivo"
+    (tagged / "S01.txt").write_text(" ".join("_".join(w) for w in words) + "\n", encoding="utf-8")
+
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
+
+    rows = df.set_index(df.Adj.where(df.Adj != "/", df.Adv))
+    assert rows.loc["bonita", ["Int", "Adj_type", "Noun", "Verb", "Inf_Verb"]].tolist() == ["muy", "predicative", "casa", "es", "ser"]
+    assert rows.loc["grande", ["Int", "Adj_type", "Noun", "Verb"]].tolist() == ["/", "predicative", "casa", "es"]
+    assert rows.loc["feo", ["Adj_type", "Verb"]].tolist() == ["predicative", "veo"]
+    assert rows.loc["viejas", ["Int", "Adj_type", "Noun", "Verb"]].tolist() == ["muy", "attributive", "casas", "vivo"]
+    assert rows.loc["lejos", ["Int", "Verb", "Inf_Verb"]].tolist() == ["bien", "vivo", "vivir"]
+
+
+def test_analyze_maps_parse_across_split_inside_token(tmp_path):
+    tagged, out = tmp_path / "tagged", tmp_path / "parsed"
+    tagged.mkdir()
+    out.mkdir()
+    (out / "S01.conllu").write_text(conllu(
+        ("...", "PUNCT", "...", 3, "punct"),
+        ("muy", "ADV", "mucho", 3, "advmod"),
+        ("bonito", "ADJ", "bonito", 0, "root"),
+        ("es", "AUX", "ser", 3, "cop"),
+    ), encoding="utf-8")
+    (tagged / "S01.txt").write_text("..._PUNCT_... muy_ADV_mucho bonito_ADJ_bonito es_AUX_ser\n", encoding="utf-8")
+
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
+
+    assert df[["Adj", "Adj_type", "Verb"]].values.tolist() == [["bonito", "predicative", "es"]]
+
+
+def test_analyze_rejects_misaligned_parse(tmp_path):
+    tagged, out = tmp_path / "tagged", tmp_path / "parsed"
+    tagged.mkdir()
+    out.mkdir()
+    (out / "S01.conllu").write_text(conllu(("bonito", "ADJ", "bonito", 0, "root")), encoding="utf-8")
+    (tagged / "S01.txt").write_text("muy_ADV_mucho bonito_ADJ_bonito\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
+
+
+def test_noun_outside_phrase_is_dropped(tmp_path):
+    # "gracias , muy agradable ,": the head noun sits in the previous segment
+    tagged, out = tmp_path / "tagged", tmp_path / "parsed"
+    tagged.mkdir()
+    out.mkdir()
+    (out / "S01.conllu").write_text(conllu(
+        ("gracias", "NOUN", "gracia", 0, "root"),
+        (",", "PUNCT", ",", 1, "punct"),
+        ("muy", "ADV", "mucho", 4, "advmod"),
+        ("agradable", "ADJ", "agradable", 1, "amod"),
+        (",", "PUNCT", ",", 4, "punct"),
+        ("la", "DET", "el", 2, "det"),
+        ("gente", "NOUN", "gente", 9, "nsubj"),
+        ("es", "AUX", "ser", 9, "cop"),
+        ("amable", "ADJ", "amable", 0, "root"),
+    ), encoding="utf-8")
+    words = [(t, u, l) for s in read_conllu(out / "S01.conllu") for _, t, u, l, _, _ in s]
+    (tagged / "S01.txt").write_text(" ".join("_".join(w) for w in words) + "\n", encoding="utf-8")
+
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
+
+    assert df[["Adj", "Adj_type", "Noun"]].values.tolist() == [
+        ["agradable", "ambiguous", "/"],
+        ["amable", "predicative", "gente"],
+    ]
+
+
+def test_verb_outside_phrase_is_dropped(tmp_path):
+    # "lo conocí , muy buen amigo ,": the verb sits in the previous segment
+    tagged, out = tmp_path / "tagged", tmp_path / "parsed"
+    tagged.mkdir()
+    out.mkdir()
+    (out / "S01.conllu").write_text(conllu(
+        ("lo", "PRON", "él", 2, "obj"),
+        ("conocí", "VERB", "conocer", 0, "root"),
+        (",", "PUNCT", ",", 2, "punct"),
+        ("muy", "ADV", "mucho", 5, "advmod"),
+        ("buen", "ADJ", "bueno", 6, "amod"),
+        ("amigo", "NOUN", "amigo", 2, "obj"),
+        (",", "PUNCT", ",", 6, "punct"),
+    ), encoding="utf-8")
+    words = [(t, u, l) for s in read_conllu(out / "S01.conllu") for _, t, u, l, _, _ in s]
+    (tagged / "S01.txt").write_text(" ".join("_".join(w) for w in words) + "\n", encoding="utf-8")
+
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
+
+    assert df[["Adj", "Adj_type", "Noun", "Verb", "Inf_Verb"]].values.tolist() == [["buen", "attributive", "amigo", "/", "/"]]

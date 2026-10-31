@@ -11,3 +11,4 @@ re-words.txt
 intensifier_data_*
 tagger_disagreements.tsv
 stanza_corrected
+stanza_parsed

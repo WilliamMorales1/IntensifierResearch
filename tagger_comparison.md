@@ -145,27 +145,46 @@ Of 52,559 tokens both tag ADJ, Lex_Adj differs on 892 (1.7%).
 
 ## Does it change results?
 
-Share of adjective rows intensified, by group, from `intensifier_data_2026-10-30` (TagAnt) and `intensifier_data_stanza_2026-10-30` (Stanza), both with all fixes. Last column is the gap before any fix.
+Share of adjective rows intensified, by group, from `intensifier_data_2026-10-31` (TagAnt) and `intensifier_data_stanza_2026-10-31` (Stanza): all fixes, speaker labels and interviewer/third-voice turns removed, Stanza Adj_type/Noun/Verb from the dependency parse. Last column is the gap before any fix.
 
 | group | TagAnt | Stanza | diff (pp) | diff before fix |
 |---|---|---|---|---|
-| hombre | 13.68 | 14.99 | +1.31 | +0.17 |
-| mujer | 16.00 | 17.42 | +1.42 | +0.01 |
-| Edu alto | 14.89 | 16.04 | +1.15 | +0.07 |
-| Edu bajo | 14.34 | 15.93 | +1.58 | +0.04 |
-| Edu medio | 14.87 | 16.30 | +1.43 | +0.16 |
-| Cali | 14.57 | 15.87 | +1.30 | +0.11 |
+| hombre | 13.69 | 14.99 | +1.31 | +0.17 |
+| mujer | 16.04 | 17.44 | +1.41 | +0.01 |
+| Edu alto | 14.90 | 16.05 | +1.15 | +0.07 |
+| Edu bajo | 14.36 | 15.94 | +1.58 | +0.04 |
+| Edu medio | 14.91 | 16.31 | +1.40 | +0.16 |
+| Cali | 14.59 | 15.90 | +1.30 | +0.11 |
 | Cartagena | 7.59 | 8.38 | +0.80 | -0.30 |
-| LA Puerto Ricans | 11.05 | 12.55 | +1.49 | +1.25 |
-| Medellín | 18.63 | 20.03 | +1.40 | +0.20 |
+| LA Puerto Ricans | 11.38 | 12.68 | +1.30 | +1.25 |
+| Medellín | 18.64 | 20.04 | +1.39 | +0.20 |
 | Tunja | 14.61 | 16.27 | +1.66 | +0.32 |
-| all | 14.75 | 16.11 | +1.36 | |
+| all | 14.77 | 16.12 | +1.35 | |
 
-Stanza is now ~1.4 pp higher everywhere: its rules removed false bare adjectives (*bueno*, *claro*, *igual*, possessives) that TagAnt still counts. The shift is near uniform, so group gaps barely change (largest: Cartagena, 0.56 pp below the mean shift). Only order flip: Edu alto vs medio, 0.02 pp apart in TagAnt.
+Stanza is ~1.35 pp higher everywhere: its rules removed false bare adjectives (*bueno*, *claro*, *igual*, possessives) that TagAnt still counts. The shift is near uniform, so group gaps and group order are unchanged (largest gap change: Cartagena, 0.55 pp below the mean shift).
 
-Per-speaker rate correlation 0.989 (before 0.987), mean absolute gap 1.35 pp (before 0.83, the uniform shift), worst speaker 5.44 pp (LAPR_M05_1991m_2013; before 6.7). Int shares move under 0.2 pp (*muy* 82.6% both). Adj_type split moves more: ambiguous 43.6% TagAnt vs 38.8% Stanza, attributive 35.7 vs 39.0, predicative 20.7 vs 22.3.
+Per-speaker rate correlation 0.989 (before 0.987), mean absolute gap 1.34 pp (before 0.83, the uniform shift), worst speaker 5.12 pp (CTG_H09; before 6.7). Int shares move under 0.2 pp (*muy* 82.6% both).
+
+Removing speaker labels (about 2,500 in 64 transcripts, mostly LAPR) raised the TagAnt PR rate 11.05 -> 11.38: TagAnt had glued the label dash onto the next word (*-bueno*), which the extraction rejected. Interviewer and third-voice turns (labeled `E:`, `E.:`, `X:`, `A.:`, *(tercera voz)*) are removed from both pipelines; unlabeled interviewer questions (common in TUNJ, e.g. *otra lechona si ¿considera que criar a sus hijos...?*) cannot be found this way and remain.
 
 Before the rules, the one real gap was LA Puerto Ricans (+1.25 pp vs ~0.1 elsewhere). After them it is in line with the uniform shift. TagAnt reads lateralized /r/ verbs as adjectives (*estal* 32, *hacel* 18, *impolta* 15, *recueldo* 9, *estudial* 8, *quedal*, *contal*), padding the bare-adjective count and pushing the PR rate down. Stanza handles *fuelte*, *celca*, *polque* better. That is a dialect-correlated error, the kind that biases a variationist comparison, and it favors Stanza for that corpus.
+
+## Dependency relations (Stanza)
+
+The Stanza pipeline now reads Adj_type, Noun and Verb from a dependency parse (`stanza_parsed/`, depparse `combined_charlm` over the corrected tags) instead of word order. TagAnt keeps word order. Adjective rows, `intensifier_data_stanza_2026-10-31` vs the word-order rules on the same tags (`..._10-30`):
+
+| | word order | dependencies | TagAnt (word order) |
+|---|---|---|---|
+| attributive | 39.0% | 47.6% | 35.7% |
+| predicative | 22.3% | 32.5% | 20.8% |
+| ambiguous | 38.8% | 19.9% | 43.6% |
+| Noun filled | 39.0% | 47.6% | 35.7% |
+| Verb filled, adjective rows | ~74% | 69.2% | ~74% |
+| Verb filled, adverb rows | 0% | 73.9% | 0% |
+
+Intensified share by type (dependencies): predicative 25.4%, ambiguous 14.5%, attributive 10.5%. Noun and Verb are always words in Phr (parse heads outside the segment are dropped; attributive -> ambiguous when the noun is outside). Word order's ~74% Verb includes verbs found by character distance, often the wrong one. Hand check of 30 changed intensified rows on 181 files: ~25 better (*lo veo muy malo* predicative with *veo*, *se ponen muy nerviosos* predicative with Noun *ladrones*). A random sample of 30 final intensified rows: ~27 right. Known residue: *o sea* sometimes steals the copula (*yo era muy hiperactivo* -> Verb *sea*).
+
+The Adj_type split is therefore not comparable between pipelines; the intensification rate is.
 
 ## Shared pipeline problems (both taggers)
 
@@ -179,4 +198,4 @@ Still open: *-ísimo* on ADV hosts (*lejísimos*, *cerquísima*) counts as unint
 
 ## Verdict
 
-Overall accuracy is a draw; neither is clearly better. Group-level results barely move except for the Puerto Rican corpus, where TagAnt is biased. Stanza's remaining errors are concentrated and rule-fixable (*poco*, *solo*, *donde*, *claro*, *san/santa*, participle lemmas); TagAnt's are scattered and include dialectal adjectives it does not know. Recommendation: use Stanza (with the split fix) plus small rules for its closed error list, and keep spot-checking. With all rules applied, Stanza's adjective rate sits ~1.4 pp above TagAnt in every group because TagAnt's false bare adjectives stay in its denominator; group comparisons are unaffected.
+Overall accuracy is a draw; neither is clearly better. Group-level results barely move except for the Puerto Rican corpus, where TagAnt is biased. Stanza's remaining errors are concentrated and rule-fixable (*poco*, *solo*, *donde*, *claro*, *san/santa*, participle lemmas); TagAnt's are scattered and include dialectal adjectives it does not know. Recommendation: use Stanza (with the split fix) plus small rules for its closed error list, and keep spot-checking. With all rules applied, Stanza's adjective rate sits ~1.4 pp above TagAnt in every group because TagAnt's false bare adjectives stay in its denominator; group comparisons are unaffected. Stanza also has a dependency parse, which classifies attributive/predicative far better than word order (ambiguous 19.9% vs 43.6%).
