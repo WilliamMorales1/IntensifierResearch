@@ -5,6 +5,7 @@ import subprocess
 import re
 from docx import Document
 
+from interviewer import remove_interviewer
 from step_7_tagged_to_csv import remove_other_turns
 
 def convert_doc_docx(input_folder, output_folder):
@@ -31,8 +32,8 @@ def strip_speaker_labels(text):
 
 
 def clean_turns(text):
-    """clean_turns drops interviewer and third-voice turns, then the participant's own labels."""
-    return strip_speaker_labels(remove_other_turns(text, turn_label, turn_question))
+    """clean_turns drops labeled interviewer and third-voice turns, unlabeled interviewer speech, then the participant's own labels."""
+    return strip_speaker_labels(remove_interviewer(remove_other_turns(text, turn_label, turn_question)))
 
 
 def clean_data(input_folder, output_folder):

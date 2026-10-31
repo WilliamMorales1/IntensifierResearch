@@ -426,7 +426,8 @@ if __name__ == "__main__":
 
     output = "intensifier_data_stanza_" + date.today().isoformat() + ".csv"
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
-    df = analyze(args.corrected, output, parse_relations(args.parsed))
+    # stanza tags come from step 5's cleaned text, and their lines are sentences, not transcript turns
+    df = analyze(args.corrected, output, parse_relations(args.parsed), clean_turns=False)
     number_counts = {}
     df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
     df["Syllable"] = df["Adj"].apply(count_syllables)

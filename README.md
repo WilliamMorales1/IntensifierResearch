@@ -53,6 +53,6 @@ October 2026: fixed three extraction bugs. Spreadsheets made before this (includ
 
 - ADV-tagged intensifiers (*bastante*, *mucho*, *casi*, ...) and *no* were emitted as their own adverb tokens.
 - Copula detection was a substring match, so *es* inside *desde* marked the next adjective predicative. It now matches whole words or the *estar*/*ser*/*parecer* lemma.
-- Turn labels left inside transcripts (*J: -pues*, *E: ¿cómo?*) and the labeled turns of the interviewer, relatives and third voices are removed in step 5 and ignored by step 7. Unlabeled interviewer questions are not detected.
+- Turn labels left inside transcripts (*J: -pues*, *E: ¿cómo?*) and the labeled turns of the interviewer, relatives and third voices are removed in step 5 and ignored by step 7. Unlabeled interviewer questions are detected by `interviewer.py` (questions addressed to the participant, with their run and lead-in); the participant echoing a question is kept.
 - Later in October 2026: fixed expressions (*bien hecho*, *mucho más/menos/mejor/peor/mayor/menor*), non-gradable adverb hosts (*casi siempre*, *mucho también*, *mucho donde*) and disfluency fragments (*muy bue muy bueno*) are dropped; *más bien* no longer counts *bien* as an intensifier; *acogedora* no longer becomes *acogedoro*.
 - Noun detection checked for intensifiers by substring, so *re* inside *padre* made *padre rico* "ambiguous" instead of attributive.

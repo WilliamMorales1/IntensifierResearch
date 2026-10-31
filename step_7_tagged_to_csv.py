@@ -7,6 +7,8 @@ from datetime import date
 
 import pandas as pd
 
+from interviewer import remove_interviewer_tagged
+
 intensifier_list = [
     "absolutamente",
     "bastante",
@@ -597,7 +599,7 @@ def process_segment(segment, speaker, parse=None):
     return rows
 
 
-def analyze(input_path, output_filename, parses=None):
+def analyze(input_path, output_filename, parses=None, clean_turns=True):
     """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
     # no mas, tan
     # Create a list to store data frames
@@ -622,7 +624,11 @@ def analyze(input_path, output_filename, parses=None):
         # Read the marked text from the file
         with open(marked_file_path, "r", encoding="utf-8") as file:
             # Read entire file and replace all newlines
-            content = strip_speaker_labels(remove_other_turns(file.read()).replace("\n", " "))
+            content = file.read()
+            # tags made from uncleaned transcripts (TagAnt) still hold labels and interviewer speech
+            if clean_turns:
+                content = strip_speaker_labels(remove_interviewer_tagged(remove_other_turns(content)))
+            content = content.replace("\n", " ")
 
             # Split the content into segments based on custom sentence-ending punctuation
             segments = re.split(r"(?<=[,.!?]_PUNCT_[,.!?])", content)

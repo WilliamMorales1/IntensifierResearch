@@ -149,23 +149,23 @@ Share of adjective rows intensified, by group, from `intensifier_data_2026-10-31
 
 | group | TagAnt | Stanza | diff (pp) | diff before fix |
 |---|---|---|---|---|
-| hombre | 13.69 | 14.99 | +1.31 | +0.17 |
-| mujer | 16.04 | 17.44 | +1.41 | +0.01 |
-| Edu alto | 14.90 | 16.05 | +1.15 | +0.07 |
-| Edu bajo | 14.36 | 15.94 | +1.58 | +0.04 |
-| Edu medio | 14.91 | 16.31 | +1.40 | +0.16 |
-| Cali | 14.59 | 15.90 | +1.30 | +0.11 |
-| Cartagena | 7.59 | 8.38 | +0.80 | -0.30 |
+| hombre | 13.69 | 15.00 | +1.31 | +0.17 |
+| mujer | 16.05 | 17.46 | +1.41 | +0.01 |
+| Edu alto | 14.91 | 16.06 | +1.15 | +0.07 |
+| Edu bajo | 14.35 | 15.94 | +1.59 | +0.04 |
+| Edu medio | 14.92 | 16.32 | +1.41 | +0.16 |
+| Cali | 14.60 | 15.90 | +1.31 | +0.11 |
+| Cartagena | 7.59 | 8.39 | +0.80 | -0.30 |
 | LA Puerto Ricans | 11.38 | 12.68 | +1.30 | +1.25 |
-| Medellín | 18.64 | 20.04 | +1.39 | +0.20 |
-| Tunja | 14.61 | 16.27 | +1.66 | +0.32 |
-| all | 14.77 | 16.12 | +1.35 | |
+| Medellín | 18.64 | 20.04 | +1.40 | +0.20 |
+| Tunja | 14.64 | 16.30 | +1.66 | +0.32 |
+| all | 14.78 | 16.13 | +1.35 | |
 
 Stanza is ~1.35 pp higher everywhere: its rules removed false bare adjectives (*bueno*, *claro*, *igual*, possessives) that TagAnt still counts. The shift is near uniform, so group gaps and group order are unchanged (largest gap change: Cartagena, 0.55 pp below the mean shift).
 
 Per-speaker rate correlation 0.989 (before 0.987), mean absolute gap 1.34 pp (before 0.83, the uniform shift), worst speaker 5.12 pp (CTG_H09; before 6.7). Int shares move under 0.2 pp (*muy* 82.6% both).
 
-Removing speaker labels (about 2,500 in 64 transcripts, mostly LAPR) raised the TagAnt PR rate 11.05 -> 11.38: TagAnt had glued the label dash onto the next word (*-bueno*), which the extraction rejected. Interviewer and third-voice turns (labeled `E:`, `E.:`, `X:`, `A.:`, *(tercera voz)*) are removed from both pipelines; unlabeled interviewer questions (common in TUNJ, e.g. *otra lechona si ¿considera que criar a sus hijos...?*) cannot be found this way and remain.
+Removing speaker labels (about 2,500 in 64 transcripts, mostly LAPR) raised the TagAnt PR rate 11.05 -> 11.38: TagAnt had glued the label dash onto the next word (*-bueno*), which the extraction rejected. Interviewer and third-voice turns (labeled `E:`, `E.:`, `X:`, `A.:`, *(tercera voz)*) are removed from both pipelines; unlabeled interviewer speech (questions addressed to the participant, their runs and lead-ins, `E.` lines) is removed by `interviewer.py` in 71 more transcripts (1,159 words, about 900 of them in one TUNJ file that is mostly interviewer script); the participant echoing a question is kept.
 
 Before the rules, the one real gap was LA Puerto Ricans (+1.25 pp vs ~0.1 elsewhere). After them it is in line with the uniform shift. TagAnt reads lateralized /r/ verbs as adjectives (*estal* 32, *hacel* 18, *impolta* 15, *recueldo* 9, *estudial* 8, *quedal*, *contal*), padding the bare-adjective count and pushing the PR rate down. Stanza handles *fuelte*, *celca*, *polque* better. That is a dialect-correlated error, the kind that biases a variationist comparison, and it favors Stanza for that corpus.
 
