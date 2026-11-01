@@ -1,8 +1,9 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from extract import analyze
+from extract import analyze, write_outputs
 from extract_stanza import (
     Dep,
     chunk_sentence,
@@ -575,3 +576,19 @@ def test_verb_outside_phrase_is_dropped(tmp_path):
     assert df[["Adj", "Adj_type", "Noun", "Verb", "Inf_Verb"]].values.tolist() == [
         ["buen", "attributive", "amigo", "/", "/"]
     ]
+
+
+def test_examples_reproduce_their_output(tmp_path):
+    examples = Path(__file__).parent.parent / "examples"
+    corrected = tmp_path / "corrected"
+    # correct_tokens must still give the corrected tags the committed parse was made from
+    correct_folder(str(examples / "stanza_tagged"), str(corrected))
+    assert (corrected / "DEMO_M45.txt").read_text(encoding="utf-8") == (
+        examples / "stanza_corrected" / "DEMO_M45.txt"
+    ).read_text(encoding="utf-8")
+
+    df = analyze(str(corrected), None, parse_relations(str(examples / "stanza_parsed")))
+    write_outputs(df, str(tmp_path / "out"), str(examples / "speakers.xlsx"), csv=True)
+    assert (tmp_path / "out.csv").read_text(encoding="utf-8") == (examples / "intensifier_data.csv").read_text(
+        encoding="utf-8"
+    )

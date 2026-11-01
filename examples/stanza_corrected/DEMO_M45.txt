@@ -1,0 +1,15 @@
+Bueno_INTJ_bueno ,_PUNCT_, el_DET_el barrio_NOUN_barrio era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo ,_PUNCT_, una_DET_uno calle_NOUN_calle bien_ADV_bien bonita_ADJ_bonito con_ADP_con casas_NOUN_casa viejas_ADJ_viejo ._PUNCT_.
+La_DET_el gente_NOUN_gente era_AUX_ser muy_ADV_mucho amable_ADJ_amable y_CCONJ_y los_DET_el vecinos_NOUN_vecino eran_AUX_ser súper_ADV_súper unidos_ADJ_unido ._PUNCT_.
+Ah_INTJ_ah ,_PUNCT_, la_DET_el comida_NOUN_comida de_ADP_de mi_DET_mi mamá_NOUN_mamá era_AUX_ser riquísima_ADJ_riquísimo ._PUNCT_.
+Hacía_VERB_hacer un_DET_uno sancocho_NOUN_sancocho buenísimo_ADJ_buenísimo los_DET_el domingos_NOUN_domingo ,_PUNCT_, y_CCONJ_y el_DET_el arroz_NOUN_arroz con_ADP_con coco_NOUN_coco quedaba_VERB_quedar delicioso_ADJ_delicioso ._PUNCT_.
+Eso_PRON_ese sí_INTJ_sí ,_PUNCT_, la_DET_el cocina_NOUN_cocina era_AUX_ser pequeña_ADJ_pequeño y_CCONJ_y bastante_ADV_bastante caliente_ADJ_caliente ._PUNCT_.
+No_ADV_no ,_PUNCT_, el_DET_el colegio_NOUN_colegio quedaba_VERB_quedar muy_ADV_mucho muy_ADV_mucho lejos_ADV_lejos ._PUNCT_.
+Uno_PRON_uno caminaba_VERB_caminar harto_ADV_harto ,_PUNCT_, como_SCONJ_como una_DET_uno hora_NOUN_hora ._PUNCT_.
+Era_AUX_ser un_DET_uno colegio_NOUN_colegio archiconocido_ADJ_archiconocido en_ADP_en la_DET_el ciudad_NOUN_ciudad ,_PUNCT_, con_ADP_con profesores_NOUN_profesor muy_ADV_mucho estrictos_ADJ_estricto pero_CCONJ_pero buenos_ADJ_buen ._PUNCT_.
+Ahora_ADV_ahora todo_PRON_todo está_AUX_estar más_ADV_más caro_ADJ_caro y_CCONJ_y la_DET_el vida_NOUN_vida es_AUX_ser complicada_ADJ_complicado ._PUNCT_.
+El_DET_el tráfico_NOUN_tráfico es_AUX_ser terrible_ADJ_terrible y_CCONJ_y la_DET_el gente_NOUN_gente anda_VERB_andar estresada_ADJ_estresado ._PUNCT_.
+Pero_CCONJ_pero igual_ADV_igual es_AUX_ser una_DET_uno ciudad_NOUN_ciudad alegre_ADJ_alegre ,_PUNCT_, ¿_PUNCT_¿ cierto_INTJ_cierto ?_PUNCT_?
+A_ADP_a mí_PRON_yo me_PRON_yo parece_VERB_parecer re_ADV_re linda_ADJ_lindo todavía_ADV_todavía ._PUNCT_.
+Mis_DET_mi hijos_NOUN_hijo son_AUX_ser muy_ADV_mucho trabajadores_ADJ_trabajador ._PUNCT_.
+El_DET_el mayor_ADJ_mayor es_AUX_ser ingeniero_NOUN_ingeniero y_CCONJ_y vive_VERB_vivir lejísimos_ADJ_lejísimo ,_PUNCT_, en_ADP_en otro_DET_otro país_NOUN_país ._PUNCT_.
+La_DET_el menor_ADJ_menor estudia_VERB_estudiar y_CCONJ_y es_AUX_ser demasiado_ADV_demasiado juiciosa_ADJ_juicioso ,_PUNCT_, siempre_ADV_siempre fue_AUX_ser una_DET_uno niña_NOUN_niña muy_ADV_mucho dulce_ADJ_dulce ._PUNCT_.

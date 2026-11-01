@@ -2,7 +2,7 @@
 
 ![Tests](https://github.com/WilliamMorales1/IntensifierResearch/actions/workflows/tests.yml/badge.svg)
 
-Extracts intensifier + adjective/adverb tokens (*muy bueno*, *riquísimo*, *archiconocido*, *muy muy lejos*) from POS-tagged Spanish sociolinguistic interviews, classifies each adjective as predicative or attributive, and merges in speaker metadata. One row per adjective or adverb token, intensified or not (`--drop-invariant` keeps only hosts intensified at least once in the corpus), so the output is a variable envelope ready for variationist analysis. Results from an earlier version are published in [*Proceedings of the LSA* 11(1)](https://doi.org/10.3765/plsa.v11i1.6091).
+Extracts intensifier + adjective/adverb tokens (*muy bueno*, *riquísimo*, *archiconocido*, *muy muy lejos*) from POS-tagged Spanish sociolinguistic interviews, classifies each adjective as predicative or attributive, and merges in speaker metadata. One row per adjective or adverb token, intensified or not (`--drop-invariant` keeps only hosts intensified at least once in the corpus), so the output is a variable envelope ready for variationist analysis. Results from an earlier version are published in [*Proceedings of the LSA* 11(1)](https://doi.org/10.3765/plsa.v11i1.6091); that code is on the [`LSA-2026-paper`](../../tree/LSA-2026-paper) branch, with its citation.
 
 Tagging, lemmas and the dependency parse come from [Stanza](https://stanfordnlp.github.io/stanza/). An earlier TagAnt pipeline was dropped; see [Why Stanza](#why-stanza).
 
@@ -13,7 +13,16 @@ python pipeline/clean_transcripts.py   # data/original/*.docx -> data/text/*.txt
 python pipeline/extract_stanza.py      # data/text -> output/intensifier_data_stanza_<date>.sqlite
 ```
 
-Needs Python 3.10+ and [LibreOffice](https://www.libreoffice.org/) for old `.doc` transcripts. The first Stanza run downloads the Spanish models (~130 MB).
+Needs Python 3.10+ and [LibreOffice](https://www.libreoffice.org/) for old `.doc` transcripts. Tagging and parsing use Stanza's transformer models (BERTIN RoBERTa, about 1 GB of downloads) and need a GPU; see [Running on Colab](#running-on-colab). Extraction from finished tags and parses runs on any laptop in about 5 minutes.
+
+To try the whole pipeline without the corpus, `examples/` holds one synthetic interview with its tags, parse and output:
+
+```fish
+python pipeline/clean_transcripts.py --input examples/original --output examples/text --skip-words 0
+python pipeline/extract_stanza.py --input examples/text --tagged examples/stanza_tagged \
+    --corrected examples/stanza_corrected --parsed examples/stanza_parsed \
+    --speakers examples/speakers.xlsx --output examples/intensifier_data --csv
+```
 
 ## Setup
 
@@ -65,7 +74,7 @@ After editing dependencies, update both `pyproject.toml` and `environment.yml`, 
 
 | Stage | File | What it does |
 | --- | --- | --- |
-| Clean | `clean_transcripts.py` | `.docx` to one turn per line. Drops parentheticals, labeled interviewer, relative and third-voice turns, then remaining speaker labels (`J: -pues`, `E.: ¿cómo?`). Also removes unlabeled interviewer speech: questions addressed to the participant (*usted*, *tú*, 2nd-person verbs), questions run together with them, and their lead-in. Keeps echoes (*¿mi casa?*), tag questions (*¿no le parece?*) and reported speech. |
+| Clean | `clean_transcripts.py` | `.docx` to one turn per line. Drops parentheticals, labeled interviewer, relative and third-voice turns, then remaining speaker labels (`J: -pues`, `E.: ¿cómo?`). Only labeled speech is removed; unlabeled questions stay, since they can't be told from the participant's own without audio. |
 | Tag (Stanza) | `extract_stanza.py` | Tags `data/text` into `data/stanza_tagged` (raw, never edited), applies `correct_tokens` into `data/stanza_corrected`, dependency-parses that into `data/stanza_parsed` (CoNLL-U). Every stage skips finished files, so an interrupted run resumes. |
 | Extract | `extract.py` | Called by `extract_stanza.py`. Splits at sentence punctuation, finds each host and the intensifier right before it, normalizes lemmas (apocope, gender, number, *-ísimo*, *archi-*), applies the extraction rules, takes `Adj_type`, `Noun` and `Verb` from the parse, and writes SQLite (xlsx and csv with `--xlsx`, `--csv`). |
 
@@ -75,7 +84,20 @@ python pipeline/extract_stanza.py --drop-invariant       # only hosts intensifie
 python pipeline/extract_stanza.py --xlsx --csv           # also write xlsx and csv next to the sqlite
 ```
 
-Tagging and parsing all 314 transcripts takes about 2 hours each on a 4-core laptop; set `OMP_NUM_THREADS=1` or each worker spins 8 threads. After changing `correct_tokens`, delete `data/stanza_parsed/` so the parse reads the new tags.
+After changing `correct_tokens`, delete `data/stanza_parsed/` so the parse reads the new tags. On a CPU, set `OMP_NUM_THREADS=1` or each worker spins 8 threads.
+
+### Running on Colab
+
+The transformer tagger and parser take days on a laptop CPU and about 1 h 40 min on a free Colab T4 for all 314 transcripts. With the [`colab` CLI](https://github.com/googlecolab/colab-cli) set up:
+
+```fish
+scripts/colab/start.sh    # packs pipeline/, data/text and finished tags/parses, starts the job on a T4
+tail -f data/colab/sync.log
+cp -r data/colab/data/stanza_* data/    # once sync.log says DONE
+python pipeline/extract_stanza.py       # tags and parses nothing new, just extracts
+```
+
+Only files missing from `data/stanza_tagged` or `data/stanza_parsed` are processed, so to redo some transcripts delete their files from both. `sync.sh` (started by `start.sh`) pulls finished files back every 10 minutes and, since free VMs get preempted, starts a new VM from them after three failed pulls. It stops the VM when the job is done.
 
 ## Output
 
@@ -106,39 +128,9 @@ df = pd.read_sql("SELECT * FROM intensifier_data", sqlite3.connect("output/inten
 
 `Adj_type`, `Noun` and `Verb` come from the parse: `amod` is attributive with the head noun; a `cop` child or an `xcomp` (*se puso feo*, *lo veo bonito*) is predicative with the subject (or object) as Noun; Verb is the first verb, copula or auxiliary up the head chain, for adverb rows too. Noun and Verb must appear in `Phr`, else `/`.
 
-## Extraction rules
+## Rules
 
-In `extract.py`:
-
-| Case | Handling |
-| --- | --- |
-| fixed expressions: *bien hecho*, *mucho más/menos/mejor/peor/mayor/menor* | row dropped |
-| non-gradable adverb hosts: *casi siempre/nunca*, *mucho también/ya/entonces/antes*, *mucho/bastante donde*, sentence adverbs | intensified row dropped, bare row kept |
-| *más bien* + host | host kept, no intensifier |
-| disfluency fragments (*muy bue muy bueno*, *muy d muy rápido*) | row dropped |
-| feminine lemmas in *-dora/-tora/-sora* | *acogedora* -> *acogedor*, not *acogedoro* |
-| *muchísimo/a/os*, *tantísimas* | row dropped |
-| *-ísimo* bases (*grandísimo*, *facilísimo*, *cheverísimo*) | base form found in the corpus: *grande*, *fácil*, *chévere*, not *grando*, *facilo*, *chevero* |
-| hosts never intensified anywhere in the corpus (*ya*, *entonces*, *mismo*, *último*), grouped by `Lex_Adj` or by the adverb with `--drop-invariant` (`analyze(..., drop_invariant=True)`), all their rows dropped; off by default |
-
-Tagger corrections, `correct_tokens` in `extract_stanza.py` (each rule hand-checked on samples):
-
-| Stanza error | Fix |
-| --- | --- |
-| turn-final words split (*casero* -> *caser* + *o*) | temporary period at the end of each turn |
-| *muy poco* PRON | ADV after an intensifier |
-| *es muy solo* ADV (= lonely) | ADJ, except after *mucho* (= only) |
-| *San/Santa/Santo* ADJ | PROPN when capitalized |
-| discourse *bueno/claro* ADJ (*bueno, ...*, *pero bueno eso*) | INTJ clause-initially or after a pause or conjunction, unless before a noun or after an intensifier |
-| *mejor/peor* ADJ in adverb uses (*a lo mejor*, *mejor me voy*) | ADV, kept ADJ after a determiner, noun, copula or *lo* |
-| *igual* ADJ = anyway (*pero igual se fue*) | ADV, kept ADJ before a noun or *a/de/en* |
-| possessives *mío/tuyo/suyo/nuestro* ADJ | DET |
-| *hay mucho venezolano* (noun as ADJ) | NOUN after DET *mucho* or *haber* |
-| participle lemma = verb (*dado* -> *dar*), *chéveres* -> *chéver* | masculine singular form, *chévere* |
-| nouns used as adjectives after *muy* (*muy amigo*, *muy niña*, *muy trabajadores*) NOUN | ADJ, except a short list (*muy falta de*, *muy toma trago*) |
-| *chéere/chevre/chevere*, *conchudo* VERB or NOUN | ADJ |
-
-Known gaps: *mucho* + adjective after a copula (*era mucho chusco*) is left alone as possibly dialectal; *solo* keeps Stanza's ADJ tags outside the quantifier rule; interviewer backchannels (*mhm*, *qué bueno*) on their own lines can't be told from the participant's.
+[`docs/rules.md`](docs/rules.md) lists every transcript cleaning rule, Stanza tag correction (`correct_tokens`), extraction rule and the `Adj_type` mapping, with the number of tokens each one changed.
 
 ## Why Stanza
 
@@ -167,7 +159,9 @@ python -m pytest -q
 ruff check . && ruff format --check .
 ```
 
-One test file per pipeline module: lemma normalization, *-ísimo* and *archi-*, double intensifiers, negation, Adj_type from parsed sentences, every extraction rule and Stanza correction, speaker-label and interviewer removal, SQLite round trip, and an end-to-end run from corrected tags to xlsx and SQLite. CI runs both commands on every push to `main` and every pull request.
+`examples/` doubles as an end-to-end check: rerunning the commands under the first section should reproduce `examples/intensifier_data.csv`.
+
+One test file per pipeline module: lemma normalization, *-ísimo* and *archi-*, double intensifiers, negation, Adj_type from parsed sentences, every extraction rule and Stanza correction, speaker-label and interviewer removal, SQLite round trip, and an end-to-end run from corrected tags to xlsx and SQLite. CI runs both commands on every push and pull request.
 
 ## Changes
 
@@ -180,7 +174,12 @@ October 2026. Spreadsheets made before this, including the data behind the *Proc
 - Added the extraction rules and the Stanza pipeline above.
 - `--drop-invariant` drops hosts that are never intensified, since they show no variation. This removes most bare-adverb rows (*ya*, *más*, *entonces*).
 
-November 2026: TagAnt support removed; Stanza is the only pipeline. `extract_tagant.py` became `extract.py`, and word-order `Adj_type`/`Verb`, TagAnt lemma repair and `compare_taggers.py` are gone.
+November 2026:
+
+- TagAnt support removed; Stanza is the only pipeline. `extract_tagant.py` became `extract.py`, and word-order `Adj_type`/`Verb`, TagAnt lemma repair and `compare_taggers.py` are gone.
+- Stanza moved to its transformer models (BERTIN RoBERTa pos and depparse), pinned to 1.15.0.
+- Interviewer removal is label-only. Unlabeled questions that looked addressed to the participant used to be removed too; that guessed wrong too often.
+- A capital *A* starting a sentence (*A mí me parece*, *A veces*) was deleted as a leftover speaker label; it is now kept.
 
 ## License
 

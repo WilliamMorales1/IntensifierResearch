@@ -751,6 +751,11 @@ if __name__ == "__main__":
     parser.add_argument("--parsed", default="data/stanza_parsed", help="dependency parse of the corrected tags")
     parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
     parser.add_argument(
+        "--output",
+        default="output/intensifier_data_stanza_" + date.today().isoformat(),
+        help="output path without extension",
+    )
+    parser.add_argument(
         "--drop-invariant", action="store_true", help="drop every row of a host that is never intensified"
     )
     parser.add_argument("--xlsx", action="store_true", help="also write the table as xlsx")
@@ -762,10 +767,9 @@ if __name__ == "__main__":
     correct_folder(args.tagged, args.corrected)
     parse_folder(args.corrected, args.parsed, args.workers)
 
-    os.makedirs("output", exist_ok=True)
-    output = "output/intensifier_data_stanza_" + date.today().isoformat()
+    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
     df = analyze(args.corrected, None, parse_relations(args.parsed), drop_invariant=args.drop_invariant)
-    write_outputs(df, output, args.speakers, xlsx=args.xlsx, csv=args.csv)
+    write_outputs(df, args.output, args.speakers, xlsx=args.xlsx, csv=args.csv)
 
     print("Make sure to manually check the -ísimo cases!")
