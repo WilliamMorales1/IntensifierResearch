@@ -8,7 +8,7 @@ from datetime import date
 
 import pandas as pd
 
-from interviewer import remove_interviewer_tagged
+from clean_transcripts import remove_interviewer_tagged, remove_other_turns
 
 speaker_data = "data/speaker_data_ALL_2026-3-12.xlsx"
 re_words = "output/re-words.txt"
@@ -303,14 +303,12 @@ non_gradable = {
 
 # endings that turn a host into a fuller form of the same word rather than completing a cut-off one
 inflection = re.compile(r"(e?s|[oa]s?|mente|(uc|it|ic|ísim)[oa]s?)")
-# transcript speaker labels ("J: -pues") that clean_transcripts missed; TagAnt glues the dash onto the next word
+# transcript speaker labels ("J: -pues") left in TagAnt's tags of uncleaned transcripts; TagAnt glues the dash onto the next word
 speaker_label = re.compile(
     r"(?<!\S)[A-ZÁÉÍÓÚÑ]{1,3}\.?_[A-Z]+_\S* :_PUNCT_:(?: -_PUNCT_-)?(?: -(\S+?)_([A-Z]+)_-?(\S*))?"
 )
 turn_label = re.compile(r"(?<!\S)([A-ZÁÉÍÓÚÑ]{1,3})\.?_[A-Z]+_\S* :_PUNCT_:")
 turn_question = re.compile(r".*?\?_PUNCT_\?(?:\s+(?:[,.]_PUNCT_[,.]\s+)?¿_PUNCT_¿.*?\?_PUNCT_\?)*")
-# transcribers also mark a third voice inside the participant's turn: "F: -(tercera voz) sigue"
-third_voice = re.compile(r"\s*\S*?tercera voz")
 
 
 def remove_SPACE(input_path):
@@ -334,35 +332,6 @@ def remove_SPACE(input_path):
                 # Write the modified content back to the file
                 with open(file_path, "w", encoding="utf-8") as file:
                     file.write(modified_content)
-
-
-def remove_other_turns(text, label=turn_label, question=turn_question):
-    """remove_other_turns drops every labeled turn not spoken by the participant (interviewer, third voices)."""
-    matches = list(label.finditer(text))
-    names = Counter(m[1] for m in matches)
-    # one-line transcripts run the participant's answer on after the question ("E: ¿cómo? difícil, ...");
-    # in line-based ones every labeled line is someone else (interviewer, relative, radio)
-    inline = text.count("\n") < 10
-    keep = None
-    if inline:
-        # "I:" is the informant; otherwise a label used throughout marks the participant's own turns
-        keep = "I" if "I" in names else next((n for n, c in names.most_common(1) if c >= 20), None)
-    out, pos = [], 0
-    for k, m in enumerate(matches):
-        if (m[1] == keep and not third_voice.match(text, m.end())) or m.start() < pos:
-            continue
-        end = matches[k + 1].start() if k + 1 < len(matches) else len(text)
-        eol = text.find("\n", m.end())
-        if eol != -1:
-            end = min(end, eol)
-        # the interviewer's turn ends with its question(s): "E.: a, se nota ¿no? ¿cuántos años llevan juntos?, me decía ..."
-        q = question.match(text, m.end(), end) if inline else None
-        if q:
-            end = min(end, q.end())
-        out.append(text[pos : m.start()])
-        pos = end
-    out.append(text[pos:])
-    return "".join(out)
 
 
 def strip_speaker_labels(content):
@@ -813,7 +782,9 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_inv
             content = file.read()
             # tags made from uncleaned transcripts (TagAnt) still hold labels and interviewer speech
             if clean_turns:
-                content = strip_speaker_labels(remove_interviewer_tagged(remove_other_turns(content)))
+                content = strip_speaker_labels(
+                    remove_interviewer_tagged(remove_other_turns(content, turn_label, turn_question))
+                )
             content = content.replace("\n", " ")
 
             # Split the content into segments based on custom sentence-ending punctuation

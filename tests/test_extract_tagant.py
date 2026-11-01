@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import pytest
 
+from clean_transcripts import remove_other_turns
 from extract_tagant import (
     analyze,
     closest_verb_infinitive,
@@ -15,9 +16,10 @@ from extract_tagant import (
     isimo_base,
     numero,
     process_segment,
-    remove_other_turns,
     strip_speaker_labels,
     to_sqlite,
+    turn_label,
+    turn_question,
     write_outputs,
 )
 
@@ -355,7 +357,7 @@ def test_remove_other_turns_on_tagged_lines():
         "E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ y_CCONJ_y cómo_PRON_cómo ?_PUNCT_?",
         "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
     ]
-    assert remove_other_turns("\n".join(lines)).split("\n")[10:] == [
+    assert remove_other_turns("\n".join(lines), turn_label, turn_question).split("\n")[10:] == [
         "",
         "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
     ]
@@ -363,7 +365,10 @@ def test_remove_other_turns_on_tagged_lines():
 
 def test_remove_other_turns_on_tagged_inline_question():
     line = "comento_VERB_comentar E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ cómo_PRON_cómo ?_PUNCT_? difícil_ADJ_difícil"
-    assert remove_other_turns(line).split() == ["comento_VERB_comentar", "difícil_ADJ_difícil"]
+    assert remove_other_turns(line, turn_label, turn_question).split() == [
+        "comento_VERB_comentar",
+        "difícil_ADJ_difícil",
+    ]
 
 
 def test_remove_other_turns_drops_tagged_third_voice():
@@ -371,8 +376,8 @@ def test_remove_other_turns_drops_tagged_third_voice():
         " ".join(["F_PROPN_F :_PUNCT_: -sí_INTJ_-sí"] * 20)
         + " F_PROPN_F :_PUNCT_: -(tercera_NOUN_-(tercera voz_NOUN_voz )_PUNCT_) sigue_VERB_seguir F_PROPN_F :_PUNCT_: -yo_PRON_-yo"
     )
-    assert "sigue_VERB_seguir" not in remove_other_turns(line)
-    assert remove_other_turns(line).endswith("-yo_PRON_-yo")
+    assert "sigue_VERB_seguir" not in remove_other_turns(line, turn_label, turn_question)
+    assert remove_other_turns(line, turn_label, turn_question).endswith("-yo_PRON_-yo")
 
 
 def test_tagant_pipeline_end_to_end(tmp_path):
