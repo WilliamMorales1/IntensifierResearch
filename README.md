@@ -88,7 +88,7 @@ After changing `correct_tokens`, delete `data/stanza_parsed/` so the parse reads
 
 ### Running on Colab
 
-The transformer tagger and parser take days on a laptop CPU and about 1 h 40 min on a free Colab T4 for all 314 transcripts. With the [`colab` CLI](https://github.com/googlecolab/colab-cli) set up:
+The transformer tagger and parser take days on a laptop CPU and about 1 h 40 min on a free Colab T4 for all 314 transcripts. With the [`colab` CLI](https://github.com/googlecolab/google-colab-cli) set up:
 
 ```fish
 scripts/colab/start.sh    # packs pipeline/, data/text and finished tags/parses, starts the job on a T4
