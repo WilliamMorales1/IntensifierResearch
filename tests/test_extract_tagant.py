@@ -50,6 +50,14 @@ def token(segment):
         ("amigables_ADJ_amigabl", "amigable"),
         ("bastantes_ADJ_bastant", "bastante"),
         ("sonoro_ADJ_sonoro", "sonoro"),
+        ("grises_ADJ_gris", "gris"),
+        ("gratis_ADJ_gratis", "gratis"),
+        ("francesa_ADJ_francés", "francés"),
+        ("traviesa_ADJ_traviés", "travieso"),
+        ("egoístas_ADJ_egoísta", "egoísta"),
+        ("adventista_ADJ_adventista", "adventista"),
+        ("paisas_ADJ_paisa", "paisa"),
+        ("demócrata_ADJ_demócrata", "demócrata"),
     ],
 )
 def test_get_adj_normalizes_apocope_gender_and_number(tagged, lex):

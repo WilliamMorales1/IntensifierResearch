@@ -132,6 +132,17 @@ def test_join_paragraphs_ends_turns_with_period():
         ("súper_ADV_súper restaurante_NOUN_restaurante", "súper_ADV_súper restaurante_NOUN_restaurante"),
         ("fue_AUX_ser muy_ADV_mucho chéere_VERB_cherer", "fue_AUX_ser muy_ADV_mucho chéere_ADJ_chévere"),
         ("un_DET_uno chevre_NOUN_chevre", "un_DET_uno chevre_ADJ_chévere"),
+        ("muy_ADV_mucho chevere_ADJ_chevere", "muy_ADV_mucho chevere_ADJ_chévere"),
+        ("yo_PRON_yo vivo_ADJ_vivo aquí_ADV_aquí", "yo_PRON_yo vivo_VERB_vivir aquí_ADV_aquí"),
+        (",_PUNCT_, vivo_ADJ_vivo en_ADP_en", ",_PUNCT_, vivo_VERB_vivir en_ADP_en"),
+        ("donde_PRON_donde vivo_ADJ_vivo ,_PUNCT_,", "donde_PRON_donde vivo_VERB_vivir ,_PUNCT_,"),
+        ("está_AUX_estar vivo_ADJ_vivo en_ADP_en", "está_AUX_estar vivo_ADJ_vivo en_ADP_en"),
+        ("muy_ADV_mucho vivo_ADJ_vivo con_ADP_con", "muy_ADV_mucho vivo_ADJ_vivo con_ADP_con"),
+        ("un_DET_uno animal_NOUN_animal vivo_ADJ_vivo", "un_DET_uno animal_NOUN_animal vivo_ADJ_vivo"),
+        ("trabajo_NOUN_trabajo vivo_ADJ_vivo feliz_ADJ_feliz", "trabajo_NOUN_trabajo vivo_VERB_vivir feliz_ADJ_feliz"),
+        ("no_ADV_no vivo_ADJ_vivo ,_PUNCT_,", "no_ADV_no vivo_VERB_vivir ,_PUNCT_,"),
+        ("llegó_VERB_llegar vivo_ADJ_vivo ,_PUNCT_,", "llegó_VERB_llegar vivo_ADJ_vivo ,_PUNCT_,"),
+        ("muy_ADV_mucho celca_ADJ_celca", "muy_ADV_mucho celca_ADV_cerca"),
     ],
 )
 def test_correct_line(line, fixed):

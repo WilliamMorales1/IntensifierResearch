@@ -27,7 +27,7 @@ parse_tagger = {"tokenize": "combined_nocharlm", "pos": "combined_nocharlm"}
 parse_processors = {"depparse": "combined_charlm"}
 
 # plural -es stripped one letter too far (chéveres -> chéver)
-lemma_fixes = {"chéver": "chévere", "chever": "chevere"}
+lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
 
 _nlp = None
 
@@ -168,6 +168,21 @@ def _quantified_noun(tokens, i):
     return tokens[i - 1][1] == "DET" or (i > 1 and tokens[i - 2][2] == "haber")
 
 
+def _verb_vivo(tokens, i):
+    # "yo vivo en", "no vivo", "vivo feliz" (I live) vs "está vivo", "muy vivo", "en vivo", "animal vivo", "llegó vivo"
+    prev, nxt, _ = _around(tokens, i)
+    if (
+        prev[1] in ("DET", "AUX", "VERB")
+        or prev[2] in predicative_lemmas
+        or prev[0].lower() in intensifier_list + ["lo", "tan", "más", "en"]
+    ):
+        return False
+    if prev[1] in ("NOUN", "PROPN", "NUM"):
+        # "en mi trabajo vivo feliz"
+        return nxt[1] in ("ADV", "ADJ") or nxt[0].lower() in ("en", "con", "de")
+    return True
+
+
 def correct_tokens(tokens):
     """correct_tokens fixes Stanza's closed list of systematic errors found by hand against TagAnt."""
     out = []
@@ -196,6 +211,11 @@ def correct_tokens(tokens):
             upos = "DET"
         elif upos == "ADJ" and _quantified_noun(tokens, i):
             upos = "NOUN"
+        elif upos == "ADJ" and low == "vivo" and _verb_vivo(tokens, i):
+            upos, lemma = "VERB", "vivir"
+        # Puerto Rican lateralized cerca
+        elif low == "celca":
+            upos, lemma = "ADV", "cerca"
         elif upos in ("NOUN", "PROPN", "VERB") and low in dialect_adjs:
             upos, lemma = "ADJ", dialect_adjs[low]
         # muy only modifies a noun used as an adjective: "muy amigo", "muy niña", "muy trabajadores"

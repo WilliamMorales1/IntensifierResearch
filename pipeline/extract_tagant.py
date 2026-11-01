@@ -53,6 +53,15 @@ apocope_dict = {
     "un": "uno",
 }
 
+# adjectives in -a with no -o form; -ista/-ísta and -crata are caught by suffix
+invariant_a = {
+    "agrícola", "azteca", "belga", "cosmopolita", "déspota", "extra", "hincha", "hipócrita", "homicida", "idiota",
+    "indígena", "inca", "israelita", "lila", "maya", "naranja", "paisa", "patriota", "persa", "pirata", "plaga", "rosa",
+    "suicida", "violeta",
+}  # fmt: skip
+# -esa adjectives whose lemma is -eso, not gentilic -és (francesa -> francés)
+eso_adjs = {"travieso", "obeso", "ileso", "espeso", "grueso", "tieso", "preso"}
+
 # Puerto Rican lateralized /r/ verbs (estal = estar) that taggers call ADJ
 lateralized_verbs = {
     "acostal", "acueldas", "agarral", "buscal", "cambial", "competil", "conseguil", "consideral", "contal", "creel",
@@ -390,6 +399,8 @@ def repair_lemma(word, lemma):
     # -ón/-ona is a real pair (gritón); -én/-ín/-ún from -ena/-ina/-una is not
     if feminine and re.search(r"[éíú]n$", lemma) and deaccent(lemma) == feminine.group(1):
         return feminine.group(1) + "o"
+    if feminine and lemma.endswith("és") and deaccent(lemma) + "o" in eso_adjs:
+        return deaccent(lemma) + "o"
     # Spanish words don't end in two consonants, so TagAnt dropped the -e
     if re.search(r"[^aeiouáéíóú]{2}$", lemma) and word.startswith(lemma + "e"):
         return lemma + "e"
@@ -407,12 +418,15 @@ def get_adj(word):
     # apocope corrections
     if lex_adjective in apocope_dict:
         lex_adjective = apocope_dict[lex_adjective]
-    if lex_adjective.endswith("s") and lex_adjective != "lejos":
+    # only plural endings lose the -s; gris, gratis, francés are singular
+    if re.search(r"[aeo]s$", lex_adjective) and lex_adjective != "lejos":
         lex_adjective = lex_adjective[:-1]
     # TagAnt sometimes keeps the feminine lemma, and -dora/-tora/-sora come from masculine -or
     if re.search(r"[dts]ora$", lex_adjective):
         lex_adjective = lex_adjective[:-1]
-    elif lex_adjective.endswith("a"):
+    elif lex_adjective.endswith("a") and not (
+        lex_adjective in invariant_a or re.search(r"([ií]sta|crata)$", lex_adjective)
+    ):
         lex_adjective = lex_adjective[:-1] + "o"
 
     # write re adjectives that could be with the re- intensifier
