@@ -9,6 +9,9 @@ import pandas as pd
 
 from interviewer import remove_interviewer_tagged
 
+speaker_data = "data/speaker_data_ALL_2026-3-12.xlsx"
+re_words = "output/re-words.txt"
+
 intensifier_list = [
     "absolutamente",
     "bastante",
@@ -278,7 +281,7 @@ non_gradable = {
 
 # endings that turn a host into a fuller form of the same word rather than completing a cut-off one
 inflection = re.compile(r"(e?s|[oa]s?|mente|(uc|it|ic|ísim)[oa]s?)")
-# transcript speaker labels ("J: -pues") that step 5 missed; TagAnt glues the dash onto the next word
+# transcript speaker labels ("J: -pues") that clean_transcripts missed; TagAnt glues the dash onto the next word
 speaker_label = re.compile(r"(?<!\S)[A-ZÁÉÍÓÚÑ]{1,3}\.?_[A-Z]+_\S* :_PUNCT_:(?: -_PUNCT_-)?(?: -(\S+?)_([A-Z]+)_-?(\S*))?")
 turn_label = re.compile(r"(?<!\S)([A-ZÁÉÍÓÚÑ]{1,3})\.?_[A-Z]+_\S* :_PUNCT_:")
 turn_question = re.compile(r".*?\?_PUNCT_\?(?:\s+(?:[,.]_PUNCT_[,.]\s+)?¿_PUNCT_¿.*?\?_PUNCT_\?)*")
@@ -360,6 +363,12 @@ def is_adj(word):
     )
 
 
+def log_re_word(word):
+    os.makedirs(os.path.dirname(re_words), exist_ok=True)
+    with open(re_words, "a", encoding="utf-8") as f:
+        f.write(word + "\n")
+
+
 def get_adj(word):
     adj_match = re.search(r"^(.*)_ADJ_", word)
     adv_match = re.search(r"_ADJ_(.+)", word)
@@ -380,8 +389,7 @@ def get_adj(word):
 
     # write re adjectives that could be with the re- intensifier
     if adjective.startswith("re"):
-        with open("re-words.txt", "a", encoding="utf-8") as f:
-            f.write(adjective + "\n")
+        log_re_word(adjective)
 
     return adjective.lower(), lex_adjective.lower()
 
@@ -398,8 +406,7 @@ def get_adv(word):
     adv_match = re.search(r"^(.*)_ADV_", word)
     adverb = adv_match.group(1)  # type: ignore
     if adverb.startswith("re"):
-        with open("re-words.txt", "a", encoding="utf-8") as f:
-            f.write(adverb + "\n")
+        log_re_word(adverb)
     return adverb.lower()
 
 
@@ -605,9 +612,8 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True):
     # Create a list to store data frames
     data_frames = []
 
-    # remove old re-words.txt
-    if os.path.exists("re-words.txt"):
-        os.remove("re-words.txt")
+    if os.path.exists(re_words):
+        os.remove(re_words)
 
     # Iterate over marked files in the input folder
     for filename in os.listdir(input_path):
@@ -680,7 +686,7 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True):
     os.remove(os.path.join(input_path, "temp.csv"))
 
     print("Successfully created data")
-    print("re- words saved to re-words.txt")
+    print(f"re- words saved to {re_words}")
 
     # Save the DataFrame to a CSV file
     data.to_csv(output_filename, index=False)
@@ -965,9 +971,9 @@ def to_sqlite(df, output_filename):
 
 
 if __name__ == "__main__":
-    input = "tagged"
-    output = "intensifier_data_" + date.today().isoformat() + ".csv"
-    speaker_df = pd.read_excel("speaker_data_ALL_2026-3-12.xlsx")
+    input = "data/tagged"
+    output = "output/intensifier_data_" + date.today().isoformat() + ".csv"
+    speaker_df = pd.read_excel(speaker_data)
 
     remove_SPACE(input)  # writes without space back to files
     df = analyze(input, output)

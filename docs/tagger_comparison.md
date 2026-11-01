@@ -1,20 +1,20 @@
 # TagAnt vs Stanza accuracy
 
-Data: 314 transcripts, same text, tagged once by TagAnt (`tagged/`) and once by Stanza (`stanza_tagged/`). Neither tagger is treated as gold. Disagreements were hand-judged.
+Data: 314 transcripts, same text, tagged once by TagAnt (`data/tagged/`) and once by Stanza (`data/stanza_tagged/`). Neither tagger is treated as gold. Disagreements were hand-judged.
 
-Reproduce the token comparison with `python compare_taggers.py --stanza stanza_corrected` (writes `tagger_disagreements.tsv`).
+Reproduce the token comparison with `python pipeline/compare_taggers.py --stanza data/stanza_corrected` (writes `output/tagger_disagreements.tsv`).
 
 ## Stanza bug found and fixed
 
 Stanza split turn-final words that had no closing punctuation: *casero* -> *caser* + *o* (CCONJ), *sabroso* -> *sabros* + *o*, *peligroso* -> *peligros* (NOUN) + *o*. 340 sentence-final tokens hit (118 adjectives), which put garbage like *muy caser*, *muy chéver*, *muy sabros* into the extraction.
 
-Fix in `step_7_stanza_to_csv.py`: `join_paragraphs` adds a temporary period to every paragraph without final punctuation, and `tag_doc` drops that period from the output so segments still match the TagAnt pipeline. The period also changes nearby tags (e.g. *muy peligroso* NOUN -> ADJ).
+Fix in `pipeline/extract_stanza.py`: `join_paragraphs` adds a temporary period to every paragraph without final punctuation, and `tag_doc` drops that period from the output so segments still match the TagAnt pipeline. The period also changes nearby tags (e.g. *muy peligroso* NOUN -> ADJ).
 
-Retagged all 314 files with the fix into `stanza_tagged/` (old buggy tags deleted 2026-10-30). Split garbage (*caser*, *chéver*, *sabros*, *peligros* as ADJ) gone from the extraction (15 rows -> 0). Remaining *peligros* tokens are the real plural noun.
+Retagged all 314 files with the fix into `data/stanza_tagged/` (old buggy tags deleted 2026-10-30). Split garbage (*caser*, *chéver*, *sabros*, *peligros* as ADJ) gone from the extraction (15 rows -> 0). Remaining *peligros* tokens are the real plural noun.
 
 ## Rule corrections
 
-`correct_tokens` in `step_7_stanza_to_csv.py` fixes Stanza's closed error list after tagging. Raw tags stay in the tagged folder; corrected copies go to `stanza_corrected/`, which the extraction reads.
+`correct_tokens` in `pipeline/extract_stanza.py` fixes Stanza's closed error list after tagging. Raw tags stay in the tagged folder; corrected copies go to `data/stanza_corrected/`, which the extraction reads.
 
 | rule | why |
 |---|---|
@@ -50,7 +50,7 @@ The later rules barely move agreement: they mostly retag tokens TagAnt also gets
 
 Spot-check of the new disagreements: the *poco* rule flips 24 tokens where TagAnt says PRON; all sampled are adverbial (*lo vemos muy poco*, *se bañan muy poco*). The 10 *poco* left (TagAnt ADV, Stanza DET) are *muy poco trabajo/tránsito/tiempo*, where Stanza is right.
 
-Extraction before the split fix (`intensifier_data_stanza_2026-10-29`) vs after fix, `correct_tokens` and the extraction rules below (`intensifier_data_stanza_2026-10-30`), with final TagAnt for reference. Word counts use Lex_Adj on adjective rows.
+Extraction before the split fix (`intensifier_data_stanza_2026-10-29`) vs after fix, `correct_tokens` and the extraction rules below (`intensifier_data_stanza_2026-10-30`), with final TagAnt for reference. Word counts use Lex_Adj on adjective rows. Both files were deleted 2026-10-31; the numbers are kept here.
 
 | | Stanza before | Stanza after | TagAnt after |
 |---|---|---|---|
@@ -72,7 +72,7 @@ Intensified rows fall because the extraction rules drop fixed expressions, non-g
 
 ## Extraction rules (both taggers)
 
-`step_7_tagged_to_csv.py`, shared by both pipelines (2026-10-30):
+`pipeline/extract_tagant.py`, shared by both pipelines (2026-10-30):
 
 | problem | fix |
 |---|---|
@@ -165,13 +165,13 @@ Stanza is ~1.35 pp higher everywhere: its rules removed false bare adjectives (*
 
 Per-speaker rate correlation 0.989 (before 0.987), mean absolute gap 1.34 pp (before 0.83, the uniform shift), worst speaker 5.12 pp (CTG_H09; before 6.7). Int shares move under 0.2 pp (*muy* 82.6% both).
 
-Removing speaker labels (about 2,500 in 64 transcripts, mostly LAPR) raised the TagAnt PR rate 11.05 -> 11.38: TagAnt had glued the label dash onto the next word (*-bueno*), which the extraction rejected. Interviewer and third-voice turns (labeled `E:`, `E.:`, `X:`, `A.:`, *(tercera voz)*) are removed from both pipelines; unlabeled interviewer speech (questions addressed to the participant, their runs and lead-ins, `E.` lines) is removed by `interviewer.py` in 71 more transcripts (1,159 words, about 900 of them in one TUNJ file that is mostly interviewer script); the participant echoing a question is kept.
+Removing speaker labels (about 2,500 in 64 transcripts, mostly LAPR) raised the TagAnt PR rate 11.05 -> 11.38: TagAnt had glued the label dash onto the next word (*-bueno*), which the extraction rejected. Interviewer and third-voice turns (labeled `E:`, `E.:`, `X:`, `A.:`, *(tercera voz)*) are removed from both pipelines; unlabeled interviewer speech (questions addressed to the participant, their runs and lead-ins, `E.` lines) is removed by `pipeline/interviewer.py` in 71 more transcripts (1,159 words, about 900 of them in one TUNJ file that is mostly interviewer script); the participant echoing a question is kept.
 
 Before the rules, the one real gap was LA Puerto Ricans (+1.25 pp vs ~0.1 elsewhere). After them it is in line with the uniform shift. TagAnt reads lateralized /r/ verbs as adjectives (*estal* 32, *hacel* 18, *impolta* 15, *recueldo* 9, *estudial* 8, *quedal*, *contal*), padding the bare-adjective count and pushing the PR rate down. Stanza handles *fuelte*, *celca*, *polque* better. That is a dialect-correlated error, the kind that biases a variationist comparison, and it favors Stanza for that corpus.
 
 ## Dependency relations (Stanza)
 
-The Stanza pipeline now reads Adj_type, Noun and Verb from a dependency parse (`stanza_parsed/`, depparse `combined_charlm` over the corrected tags) instead of word order. TagAnt keeps word order. Adjective rows, `intensifier_data_stanza_2026-10-31` vs the word-order rules on the same tags (`..._10-30`):
+The Stanza pipeline now reads Adj_type, Noun and Verb from a dependency parse (`data/stanza_parsed/`, depparse `combined_charlm` over the corrected tags) instead of word order. TagAnt keeps word order. Adjective rows, `intensifier_data_stanza_2026-10-31` vs the word-order rules on the same tags (`..._10-30`):
 
 | | word order | dependencies | TagAnt (word order) |
 |---|---|---|---|

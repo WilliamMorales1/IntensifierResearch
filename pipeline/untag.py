@@ -35,4 +35,4 @@ def untag(input_folder, output_folder):
 
 
 if __name__ == "__main__":
-    untag("tagged", "text")
+    untag("data/tagged", "data/text")

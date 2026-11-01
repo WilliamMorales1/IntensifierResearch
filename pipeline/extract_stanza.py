@@ -1,4 +1,4 @@
-# tags the raw transcripts with stanza instead of TagAnt, then runs the same extraction as step 7
+# tags the raw transcripts with stanza instead of TagAnt, then runs the same extraction as extract_tagant
 
 import argparse
 import os
@@ -9,12 +9,13 @@ from multiprocessing import get_context
 
 import pandas as pd
 
-from step_7_tagged_to_csv import (
+from extract_tagant import (
     analyze,
     count_syllables,
     intensifier_list,
     merge_speaker_data,
     numero,
+    speaker_data,
     to_sqlite,
 )
 
@@ -29,7 +30,6 @@ processors = {
 # depparse combined_nocharlm fails to load in torch 2.6, and ancora_nocharlm parsed worse by hand
 parse_tagger = {"tokenize": "combined_nocharlm", "pos": "combined_nocharlm"}
 parse_processors = {"depparse": "combined_charlm"}
-speaker_data = "speaker_data_ALL_2026-3-12.xlsx"
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chevere"}
@@ -38,7 +38,7 @@ _nlp = None
 
 
 def clean_field(text):
-    # spaces and underscores would break the word_POS_lemma format step 7 parses
+    # spaces and underscores would break the word_POS_lemma format extract_tagant parses
     return (text or "").replace(" ", "").replace("_", "-")
 
 
@@ -413,10 +413,10 @@ def tag_folder(input_folder, output_folder, workers):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="text", help="folder of raw .txt transcripts")
-    parser.add_argument("--tagged", default="stanza_tagged", help="where stanza output goes")
-    parser.add_argument("--corrected", default="stanza_corrected", help="tags after correct_tokens")
-    parser.add_argument("--parsed", default="stanza_parsed", help="dependency parse of the corrected tags")
+    parser.add_argument("--input", default="data/text", help="folder of raw .txt transcripts")
+    parser.add_argument("--tagged", default="data/stanza_tagged", help="where stanza output goes")
+    parser.add_argument("--corrected", default="data/stanza_corrected", help="tags after correct_tokens")
+    parser.add_argument("--parsed", default="data/stanza_parsed", help="dependency parse of the corrected tags")
     parser.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 
@@ -424,9 +424,10 @@ if __name__ == "__main__":
     correct_folder(args.tagged, args.corrected)
     parse_folder(args.corrected, args.parsed, args.workers)
 
-    output = "intensifier_data_stanza_" + date.today().isoformat() + ".csv"
+    os.makedirs("output", exist_ok=True)
+    output = "output/intensifier_data_stanza_" + date.today().isoformat() + ".csv"
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
-    # stanza tags come from step 5's cleaned text, and their lines are sentences, not transcript turns
+    # stanza tags come from clean_transcripts' cleaned text, and their lines are sentences, not transcript turns
     df = analyze(args.corrected, output, parse_relations(args.parsed), clean_turns=False)
     number_counts = {}
     df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)

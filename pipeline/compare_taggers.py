@@ -8,7 +8,7 @@ from collections import Counter
 
 import pandas as pd
 
-from step_7_tagged_to_csv import intensifier_list, is_adj, is_adv
+from extract_tagant import intensifier_list, is_adj, is_adv
 
 
 def read_tags(path):
@@ -73,9 +73,9 @@ def compare(tagant_dir, stanza_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tagant", default="tagged")
-    parser.add_argument("--stanza", default="stanza_tagged")
-    parser.add_argument("--out", default="tagger_disagreements.tsv")
+    parser.add_argument("--tagant", default="data/tagged")
+    parser.add_argument("--stanza", default="data/stanza_tagged")
+    parser.add_argument("--out", default="output/tagger_disagreements.tsv")
     args = parser.parse_args()
 
     pos, slots = compare(args.tagant, args.stanza)

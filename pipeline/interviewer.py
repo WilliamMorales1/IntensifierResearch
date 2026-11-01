@@ -1,4 +1,4 @@
-# finds the interviewer's speech left unlabeled in the transcripts, so steps 5 and 7 can drop it
+# finds the interviewer's speech left unlabeled in the transcripts, so clean_transcripts and extract_tagant can drop it
 
 import re
 

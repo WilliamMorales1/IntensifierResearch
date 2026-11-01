@@ -2,8 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from step_6_untag import untag, untag_line
-from step_7_stanza_to_csv import (
+from extract_stanza import (
     chunk_sentence,
     correct_folder,
     correct_line,
@@ -14,7 +13,8 @@ from step_7_stanza_to_csv import (
     tag_doc,
     tag_word,
 )
-from step_7_tagged_to_csv import analyze
+from extract_tagant import analyze
+from untag import untag, untag_line
 
 
 def test_untag_line_restores_raw_text():
@@ -48,7 +48,7 @@ def word(text, upos, lemma):
         (word("1 000", "NUM", None), "1000_NUM_"),
     ],
 )
-def test_tag_word_keeps_step_7_format(w, tagged):
+def test_tag_word_keeps_tagged_format(w, tagged):
     assert tag_word(w) == tagged
 
 

@@ -3,9 +3,7 @@ import sqlite3
 import pandas as pd
 import pytest
 
-from step_7_tagged_to_csv import (
-    remove_other_turns,
-    strip_speaker_labels,
+from extract_tagant import (
     closest_verb_infinitive,
     closest_verb_non_infinitive,
     count_syllables,
@@ -13,13 +11,15 @@ from step_7_tagged_to_csv import (
     get_int,
     numero,
     process_segment,
+    remove_other_turns,
+    strip_speaker_labels,
     to_sqlite,
 )
 
 
 @pytest.fixture(autouse=True)
 def _isolate_cwd(tmp_path, monkeypatch):
-    # get_adj appends re- words to re-words.txt in the working directory.
+    # get_adj appends re- words to output/re-words.txt under the working directory.
     monkeypatch.chdir(tmp_path)
 
 

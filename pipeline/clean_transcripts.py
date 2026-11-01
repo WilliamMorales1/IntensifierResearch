@@ -1,12 +1,14 @@
 # cleaning the data before putting it into TagAnt
 
 import os
-import subprocess
 import re
+import subprocess
+
 from docx import Document
 
+from extract_tagant import remove_other_turns
 from interviewer import remove_interviewer
-from step_7_tagged_to_csv import remove_other_turns
+
 
 def convert_doc_docx(input_folder, output_folder):
     # Create the output folder if it doesn't exist
@@ -16,8 +18,6 @@ def convert_doc_docx(input_folder, output_folder):
     for filename in os.listdir(input_folder):
         if filename.endswith(".doc"):
             doc_path = os.path.join(input_folder, filename)
-            output_path = os.path.join(output_folder, filename.replace(".doc", ".docx"))
-
             # Use LibreOffice to convert .doc to .docx
             subprocess.run(['libreoffice', '--headless', '--convert-to', 'docx', doc_path, '--outdir', output_folder])
 
@@ -133,5 +133,5 @@ def remove_text(input_folder, num_words_to_remove):
     print(f"Successfully deleted {num_words_to_remove} words from each file")
 
 if __name__ == "__main__":
-    clean_data("original", "text")
-    remove_text("text", 350)
+    clean_data("data/original", "data/text")
+    remove_text("data/text", 350)
