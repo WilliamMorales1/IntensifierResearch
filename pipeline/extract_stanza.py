@@ -98,7 +98,7 @@ fillers = {
     "umm",
     "ehm",
 }
-discourse_adjs = ("bueno", "claro", "exacto")
+discourse_adjs = ("bueno", "claro", "exacto", "listo")
 # Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN or VERB
 dialect_adjs = {"chéere": "chévere", "chevre": "chévere", "chevere": "chévere", "conchudo": "conchudo"}
 # nouns after muy that are not used as adjectives ("muy falta de", "muy toma trago"), or are cut-off words
@@ -191,6 +191,32 @@ def _adverbial_primero(tokens, i):
     return nxt[1] not in ("NOUN", "PROPN", "ADJ")
 
 
+def _time_media(tokens, i):
+    # "medio día", "media noche" (midday, midnight), "dos y media" (half past)
+    prev, nxt, _ = _around(tokens, i)
+    if nxt[0].lower() in ("día", "noche"):
+        return True
+    return prev[0].lower() == "y" and i > 1 and (tokens[i - 2][1] == "NUM" or tokens[i - 2][0].lower() in ("hora", "horas"))
+
+
+def _adverbial_total(tokens, i):
+    # "total que volvimos", ", total es que", "bueno total" (anyway) vs "cambio total", "en total", "total caos"
+    prev, nxt, _ = _around(tokens, i)
+    return (prev[1] == "PUNCT" or prev[0].lower() in ("bueno", "que", "pues")) and (
+        nxt[0].lower() in ("que", "es", "porque", "pero") or nxt[1] == "PUNCT"
+    )
+
+
+def _adverbial_seguro(tokens, i):
+    # "seguro que sí", "pero seguro que" (surely) vs "estoy seguro que", "más seguro que este"
+    prev, nxt, _ = _around(tokens, i)
+    return nxt[0].lower() == "que" and not (
+        prev[1] in ("AUX", "DET", "NOUN", "PROPN")
+        or prev[2] in predicative_lemmas
+        or prev[0].lower() in intensifier_list + ["tan", "más", "mas", "lo"]
+    )
+
+
 def _verb_vivo(tokens, i):
     # "yo vivo en", "no vivo", "vivo feliz" (I live) vs "está vivo", "muy vivo", "en vivo", "animal vivo", "llegó vivo"
     prev, nxt, _ = _around(tokens, i)
@@ -245,6 +271,24 @@ def correct_tokens(tokens):
             upos = "NOUN"
         elif upos == "ADJ" and low == "vivo" and _verb_vivo(tokens, i):
             upos, lemma = "VERB", "vivir"
+        # "se le hecha", "le hechas una cucharada": misspelled echar
+        elif (
+            upos == "ADJ"
+            and re.fullmatch(r"hech[oa]s?|hechan", low)
+            and i > 0
+            and tokens[i - 1][0].lower() in ("se", "le", "les", "me", "te", "nos")
+        ):
+            upos, lemma = "VERB", "echar"
+        elif upos == "ADJ" and low == "debido" and _around(tokens, i)[1][0].lower() in ("a", "al"):
+            upos = "ADP"
+        elif upos == "ADJ" and low == "junto" and _around(tokens, i)[1][0].lower() in ("a", "al", "con", "de", "e"):
+            upos = "ADV"
+        elif upos == "ADJ" and low in ("medio", "media") and _time_media(tokens, i):
+            upos = "NUM" if tokens[i - 1][0].lower() == "y" else "NOUN"
+        elif upos == "ADJ" and (
+            low == "total" and _adverbial_total(tokens, i) or low == "seguro" and _adverbial_seguro(tokens, i)
+        ):
+            upos = "ADV"
         # Puerto Rican lateralized cerca
         elif low == "celca":
             upos, lemma = "ADV", "cerca"
