@@ -3,11 +3,8 @@ import sqlite3
 import pandas as pd
 import pytest
 
-from clean_transcripts import remove_other_turns
-from extract_tagant import (
+from extract import (
     analyze,
-    closest_verb_infinitive,
-    closest_verb_non_infinitive,
     count_syllables,
     drop_invariant_hosts,
     fix_isimo_hosts,
@@ -16,10 +13,7 @@ from extract_tagant import (
     isimo_base,
     numero,
     process_segment,
-    strip_speaker_labels,
     to_sqlite,
-    turn_label,
-    turn_question,
     write_outputs,
 )
 
@@ -44,18 +38,13 @@ def token(segment):
         ("bonitas_ADJ_bonita", "bonito"),
         ("altos_ADJ_altos", "alto"),
         ("lejos_ADJ_lejos", "lejos"),
-        ("acogedora_ADJ_acogedoro", "acogedor"),
-        ("colaboradoras_ADJ_colaboradoro", "colaborador"),
-        ("morena_ADJ_morén", "moreno"),
-        ("peregrina_ADJ_peregrín", "peregrino"),
         ("gritona_ADJ_gritón", "gritón"),
-        ("amigables_ADJ_amigabl", "amigable"),
-        ("bastantes_ADJ_bastant", "bastante"),
         ("sonoro_ADJ_sonoro", "sonoro"),
         ("grises_ADJ_gris", "gris"),
         ("gratis_ADJ_gratis", "gratis"),
         ("francesa_ADJ_francés", "francés"),
-        ("traviesa_ADJ_traviés", "travieso"),
+        ("soltera_ADJ_soltera", "soltero"),
+        ("pequeñitas_ADJ_pequeñitas", "pequeñito"),
         ("egoístas_ADJ_egoísta", "egoísta"),
         ("adventista_ADJ_adventista", "adventista"),
         ("paisas_ADJ_paisa", "paisa"),
@@ -71,19 +60,16 @@ def test_get_int_merges_super_spellings(spelling):
     assert get_int(f"{spelling}_ADV_{spelling}") == "súper"
 
 
-def test_predicative_with_intensifier():
+def test_intensified_adjective_without_parse():
     row = token("es_AUX_ser muy_ADV_muy bueno_ADJ_bueno")
-    assert (row["Int"], row["Lex_Adj"], row["Adj_type"], row["Double"]) == ("muy", "bueno", "predicative", "/")
+    assert (row["Int"], row["Lex_Adj"], row["Double"]) == ("muy", "bueno", "/")
+    # Adj_type, Noun and Verb only come from the parse
+    assert (row["Adj_type"], row["Noun"], row["Verb"], row["Inf_Verb"]) == ("ambiguous", "/", "/", "/")
 
 
-def test_attributive_records_noun():
-    row = token("casa_NOUN_casa bonita_ADJ_bonito")
-    assert (row["Int"], row["Adj_type"], row["Noun"]) == ("/", "attributive", "casa")
-
-
-def test_apocopated_adjective_before_noun():
+def test_apocopated_adjective():
     row = token("buen_ADJ_buen hombre_NOUN_hombre")
-    assert (row["Adj"], row["Lex_Adj"], row["Noun"]) == ("buen", "bueno", "hombre")
+    assert (row["Adj"], row["Lex_Adj"]) == ("buen", "bueno")
 
 
 def test_double_intensifier():
@@ -128,36 +114,9 @@ def test_negation_is_not_counted_as_adverb_host():
     assert process_segment("no_ADV_no muy_ADV_muy bueno_ADJ_bueno", "S01") == []
 
 
-def test_noun_match_ignores_intensifier_substrings():
-    # "re" is an intensifier and used to match inside "padre".
-    row = token("padre_NOUN_padre rico_ADJ_rico")
-    assert (row["Adj_type"], row["Noun"]) == ("attributive", "padre")
-
-
-def test_noun_intensifier_adjective():
-    row = token("tarde_NOUN_tarde re_ADV_re linda_ADJ_lindo")
-    assert (row["Int"], row["Adj_type"], row["Noun"]) == ("re", "attributive", "tarde")
-
-
-def test_copula_by_lemma():
-    row = token("estuvieron_AUX_estar contentos_ADJ_contento")
-    assert row["Adj_type"] == "predicative"
-
-
-def test_copula_match_is_whole_word():
-    row = token("desde_ADP_desde interesante_ADJ_interesante")
-    assert row["Adj_type"] == "ambiguous"
-
-
 @pytest.mark.parametrize(("word", "n"), [("queso", 2), ("guitarra", 3), ("pingüino", 3), ("muy", 1)])
 def test_count_syllables(word, n):
     assert count_syllables(word) == n
-
-
-def test_closest_verb():
-    row = {"Phr_tagged": "ella_PRON_ella era_AUX_ser muy_ADV_muy alta_ADJ_alto", "Adj": "alta"}
-    assert closest_verb_non_infinitive(row) == "era"
-    assert closest_verb_infinitive(row) == "ser"
 
 
 def test_numero_counts_each_speaker_separately():
@@ -197,6 +156,7 @@ def test_to_sqlite_round_trips(tmp_path):
     ("tagged", "lex"),
     [
         ("acogedora_ADJ_acogedora", "acogedor"),
+        ("luchadora_ADJ_luchadora", "luchador"),
         ("colaboradoras_ADJ_colaboradora", "colaborador"),
         ("conservadora_ADJ_conservador", "conservador"),
         ("sonora_ADJ_sonora", "sonoro"),
@@ -277,8 +237,6 @@ def test_disfluency_fragments_dropped(segment, hosts):
 
 
 def test_isimo_quantifier_dropped():
-    assert process_segment("muchísimas_ADJ_muchísimo cosas_NOUN_cosa", "S01") == []
-    assert process_segment("tantísimas_ADJ_tantísimo cosas_NOUN_cosa", "S01") == []
     assert process_segment("me_PRON_yo gusta_VERB_gustar muchísimo_ADV_muchísimo", "S01") == []
 
 
@@ -343,80 +301,32 @@ def test_fix_isimo_hosts_uses_corpus_forms():
     assert out["Adv"].iloc[-1] == "rápido"
 
 
-@pytest.mark.parametrize(
-    ("content", "clean"),
-    [
-        ("vida_NOUN_vida J_PROPN_J :_PUNCT_: -pues_ADV_-pues fue_AUX_ser", "vida_NOUN_vida pues_ADV_pues fue_AUX_ser"),
-        ("LMP_PROPN_LMP :_PUNCT_: -_PUNCT_- si_INTJ_si", "si_INTJ_si"),
-        ("E_NOUN_e :_PUNCT_: ¿_PUNCT_¿ cómo_PRON_cómo", "¿_PUNCT_¿ cómo_PRON_cómo"),
-        ("hora_NOUN_hora :_PUNCT_: las_DET_el", "hora_NOUN_hora :_PUNCT_: las_DET_el"),
-    ],
-)
-def test_strip_speaker_labels(content, clean):
-    assert strip_speaker_labels(content).split() == clean.split()
-
-
-def test_remove_other_turns_on_tagged_lines():
-    lines = ["x_NOUN_x"] * 10 + [
-        "E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ y_CCONJ_y cómo_PRON_cómo ?_PUNCT_?",
-        "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
-    ]
-    assert remove_other_turns("\n".join(lines), turn_label, turn_question).split("\n")[10:] == [
-        "",
-        "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
-    ]
-
-
-def test_remove_other_turns_on_tagged_inline_question():
-    line = "comento_VERB_comentar E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ cómo_PRON_cómo ?_PUNCT_? difícil_ADJ_difícil"
-    assert remove_other_turns(line, turn_label, turn_question).split() == [
-        "comento_VERB_comentar",
-        "difícil_ADJ_difícil",
-    ]
-
-
-def test_remove_other_turns_drops_tagged_third_voice():
-    line = (
-        " ".join(["F_PROPN_F :_PUNCT_: -sí_INTJ_-sí"] * 20)
-        + " F_PROPN_F :_PUNCT_: -(tercera_NOUN_-(tercera voz_NOUN_voz )_PUNCT_) sigue_VERB_seguir F_PROPN_F :_PUNCT_: -yo_PRON_-yo"
+def test_analyze_and_write_outputs_end_to_end(tmp_path):
+    corrected = tmp_path / "corrected"
+    corrected.mkdir()
+    (corrected / "S01.txt").write_text(
+        "la_DET_el casa_NOUN_casa es_AUX_ser muy_ADV_mucho bonita_ADJ_bonito ._PUNCT_.\n", encoding="utf-8"
     )
-    assert "sigue_VERB_seguir" not in remove_other_turns(line, turn_label, turn_question)
-    assert remove_other_turns(line, turn_label, turn_question).endswith("-yo_PRON_-yo")
-
-
-def test_tagant_pipeline_end_to_end(tmp_path):
-    tagged = tmp_path / "tagged"
-    tagged.mkdir()
-    (tagged / "S01.txt").write_text(
-        "la_DET_el casa_NOUN_casa es_AUX_ser muy_ADV_muy bonita_ADJ_bonito ._PUNCT_.\n"
-        "E_PROPN_e :_PUNCT_: ¿_PUNCT_¿ es_AUX_ser usted_PRON_usted feliz_ADJ_feliz ?_PUNCT_?\n",
-        encoding="utf-8",
-    )
-    (tagged / "notes.md").write_text("ignored", encoding="utf-8")
+    (corrected / "notes.md").write_text("ignored", encoding="utf-8")
     speakers = tmp_path / "speakers.xlsx"
     pd.DataFrame({"Speaker": ["S01"], "Gender": ["mujer"]}).to_excel(speakers, index=False)
     output = str(tmp_path / "out")
 
-    df = analyze(str(tagged))
-    df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
-    df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
-    df = write_outputs(df, output, str(speakers), xlsx=True, csv=True)
+    df = write_outputs(analyze(str(corrected)), output, str(speakers), xlsx=True, csv=True)
 
     with sqlite3.connect(tmp_path / "out.sqlite") as con:
         back = pd.read_sql("SELECT * FROM intensifier_data", con)
     pd.testing.assert_frame_equal(back, df, check_dtype=False)
     assert (tmp_path / "out.xlsx").exists()
     pd.testing.assert_frame_equal(pd.read_csv(tmp_path / "out.csv", dtype=str), df.astype(str), check_dtype=False)
-    row = df.iloc[0]
     assert len(df) == 1
-    assert (row["Int"], row["Adj"], row["Adj_type"], row["Verb"], row["Gender"]) == (
+    assert df.iloc[0][["Int", "Adj", "Lex_Adj", "Gender", "Number"]].tolist() == [
         "muy",
         "bonita",
-        "predicative",
-        "es",
+        "bonito",
         "mujer",
-    )
-    assert row["Number"] == "S01_01"
+        "S01_01",
+    ]
 
 
 def test_analyze_with_no_files(tmp_path):
@@ -452,14 +362,6 @@ def test_analyze_drops_hosts_never_intensified(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "segment",
-    ["pa_ADP_para estal_ADJ_estal", "no_ADV_no me_PRON_yo recueldo_ADJ_recueldo", "de_ADP_de cocinal_ADJ_cocinal"],
-)
-def test_lateralized_verb_is_not_adjective(segment):
-    assert process_segment(segment, "S01") == []
-
-
-@pytest.mark.parametrize(
     ("segment", "host"),
     [
         ("entoes_ADJ_entoes fuimos_VERB_ir", "entoes"),
@@ -467,7 +369,6 @@ def test_lateralized_verb_is_not_adjective(segment):
         ("queda_VERB_quedar súper_ADV_súper cerquita_ADJ_cerquita", "cerquita"),
         ("hago_VERB_hacer muy_ADV_mucho poquito_ADJ_poquito", "poquito"),
         ("estábamos_AUX_estar lejísimos_ADJ_lejísimo", "lejos"),
-        ("van_VERB_ir lejísimos_VERB_lejísir", "lejos"),
         ("es_AUX_ser muy_ADV_mucho celca_ADV_cerca", "cerca"),
     ],
 )
@@ -480,7 +381,6 @@ def test_retag_always_adverbs(segment, host):
     "segment",
     [
         "un_DET_uno poquito_ADJ_poquito duro_NOUN_duro",
-        "muy_ADV_mucho pocas_ADJ_poco cosas_NOUN_cosa",
         "muy_ADV_mucho poquitas_ADJ_poquito veces_NOUN_vez",
         "muy_ADV_mucho poquito_ADJ_poquito tiempo_NOUN_tiempo",
         "son_AUX_ser muy_ADV_mucho poquitos_ADJ_poquito ,_PUNCT_,",
@@ -493,20 +393,3 @@ def test_retag_quantifiers_are_not_hosts(segment):
 @pytest.mark.parametrize("host", ["bue", "bie", "tod", "nun"])
 def test_cut_off_without_restart_is_fragment(host):
     assert process_segment(f"sería_AUX_ser muy_ADV_mucho {host}_ADV_{host} podría_AUX_poder", "S01") == []
-
-
-@pytest.mark.parametrize(
-    "segment",
-    [
-        "es_AUX_ser mucho_ADV_mucho frío_ADJ_frío",
-        "hace_VERB_hacer bastante_ADV_bastante frío_ADJ_frío",
-        "hacía_VERB_hacer frío_ADJ_frío",
-    ],
-)
-def test_weather_frio_is_noun(segment):
-    assert [r["Adj"] for r in process_segment(segment, "S01")] == []
-
-
-def test_frio_adjective_kept():
-    (row,) = process_segment("el_DET_el agua_NOUN_agua es_AUX_ser muy_ADV_mucho fría_ADJ_frío", "S01")
-    assert (row["Int"], row["Lex_Adj"]) == ("muy", "frío")

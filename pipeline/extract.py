@@ -1,14 +1,12 @@
-import argparse
+# host extraction from Stanza's corrected word_UPOS_lemma tags: intensifier + adjective/adverb rows
+
 import bisect
 import os
 import re
 import sqlite3
 from collections import Counter
-from datetime import date
 
 import pandas as pd
-
-from clean_transcripts import remove_interviewer_tagged, remove_other_turns
 
 speaker_data = "data/speaker_data_ALL_2026-3-12.xlsx"
 re_words = "output/re-words.txt"
@@ -59,190 +57,6 @@ invariant_a = {
     "indígena", "inca", "israelita", "lila", "maya", "naranja", "paisa", "patriota", "persa", "pirata", "plaga", "rosa",
     "suicida", "violeta",
 }  # fmt: skip
-# -esa adjectives whose lemma is -eso, not gentilic -és (francesa -> francés)
-eso_adjs = {"travieso", "obeso", "ileso", "espeso", "grueso", "tieso", "preso"}
-
-# Puerto Rican lateralized /r/ verbs and other words (estal = estar, polque = porque) that taggers call ADJ
-lateralized_verbs = {
-    "acostal", "acueldas", "agarral", "buscal", "cambial", "competil", "conseguil", "consideral", "contal", "creel",
-    "dirigil", "entral", "estal", "estudial", "hacel", "ilme", "imaginal", "impactal", "impolta", "levantal",
-    "metelnos", "molestal", "paral", "pelial", "pescal", "ponel", "preparal", "prestal", "pronuncial", "quedal",
-    "recueldo", "regalal", "respetal", "respiral", "saltal", "solicital", "sulgido", "telmina", "visital", "vivil",
-    "cocinal", "limpial", "celebral", "tratal", "logral", "disfrutal", "telmino", "polque", "helmano", "puelto",
-}  # fmt: skip
-
-forms_of_estar = [
-    "estar",
-    "estal",
-    "estoy",
-    "estás",
-    "está",
-    "estamos",
-    "estáis",
-    "están",
-    "estaba",
-    "estabas",
-    "estábamos",
-    "estabais",
-    "estaban",
-    "estuve",
-    "estuviste",
-    "estuvo",
-    "estuvimos",
-    "estuvisteis",
-    "estuvieron",
-    "estaré",
-    "estarás",
-    "estará",
-    "estaremos",
-    "estaréis",
-    "estarán",
-    "estaría",
-    "estarías",
-    "estaría",
-    "estaríamos",
-    "estaríais",
-    "estarían",
-    "esté",
-    "estés",
-    "estemos",
-    "estéis",
-    "estén",
-    "estuviera",
-    "estuvieras",
-    "estuviéramos",
-    "estuvierais",
-    "estuvieran",
-    "estuviese",
-    "estuvieses",
-    "estuviésemos",
-    "estuvieseis",
-    "estuviesen",
-    "estuviere",
-    "estuvieres",
-    "estuviéremos",
-    "estuviereis",
-    "estuvieren",
-    "estad",
-]
-
-forms_of_ser = [
-    "ser",
-    "sel",
-    "soy",
-    "eres",
-    "es",
-    "somos",
-    "sois",
-    "son",
-    "era",
-    "eras",
-    "éramos",
-    "erais",
-    "eran",
-    "fui",
-    "fuiste",
-    "fue",
-    "fuimos",
-    "fuisteis",
-    "fueron",
-    "seré",
-    "serás",
-    "será",
-    "seremos",
-    "seréis",
-    "serán",
-    "sería",
-    "serías",
-    "sería",
-    "seríamos",
-    "seríais",
-    "serían",
-    "sea",
-    "seas",
-    "seás",
-    "seamos",
-    "seáis",
-    "sean",
-    "fuera",
-    "fueras",
-    "fuéramos",
-    "fuerais",
-    "fueran",
-    "fuese",
-    "fueses",
-    "fuésemos",
-    "fueseis",
-    "fuesen",
-    "fuere",
-    "fueres",
-    "fuéremos",
-    "fuereis",
-    "fueren",
-    "sé",
-    "sed",
-]
-
-forms_of_parecer = [
-    "parecer",
-    "parecel",
-    "parezco",
-    "pareces",
-    "parecés",
-    "parece",
-    "parecemos",
-    "parecéis",
-    "parecen",
-    "parecía",
-    "parecías",
-    "parecíamos",
-    "parecíais",
-    "parecían",
-    "parecí",
-    "pareciste",
-    "pareció",
-    "parecimos",
-    "parecisteis",
-    "parecieron",
-    "pareceré",
-    "parecerás",
-    "parecerá",
-    "pareceremos",
-    "pareceréis",
-    "parecerán",
-    "parecería",
-    "parecerías",
-    "parecería",
-    "pareceríamos",
-    "pareceríais",
-    "parecerían",
-    "parezca",
-    "parezcas",
-    "parezcás",
-    "parezcamos",
-    "parezcáis",
-    "parezcan",
-    "pareciera",
-    "parecieras",
-    "pareciéramos",
-    "parecierais",
-    "parecieran",
-    "pareciese",
-    "parecieses",
-    "pareciésemos",
-    "parecieseis",
-    "pareciesen",
-    "pareciere",
-    "parecieres",
-    "pareciéremos",
-    "pareciereis",
-    "parecieren",
-    "paracé",
-    "pareced",
-]
-
-copulas = forms_of_estar + forms_of_ser + forms_of_parecer
-copula_lemmas = ["estar", "ser", "parecer"]
 
 # fixed expressions without variation (*muy mejor is impossible, so mucho there is a quantifier)
 fixed_expressions = {
@@ -312,39 +126,6 @@ non_gradable = {
 
 # endings that turn a host into a fuller form of the same word rather than completing a cut-off one
 inflection = re.compile(r"(e?s|[oa]s?|mente|(uc|it|ic|ísim)[oa]s?)")
-# transcript speaker labels ("J: -pues") left in TagAnt's tags of uncleaned transcripts; TagAnt glues the dash onto the next word
-speaker_label = re.compile(
-    r"(?<!\S)[A-ZÁÉÍÓÚÑ]{1,3}\.?_[A-Z]+_\S* :_PUNCT_:(?: -_PUNCT_-)?(?: -(\S+?)_([A-Z]+)_-?(\S*))?"
-)
-turn_label = re.compile(r"(?<!\S)([A-ZÁÉÍÓÚÑ]{1,3})\.?_[A-Z]+_\S* :_PUNCT_:")
-turn_question = re.compile(r".*?\?_PUNCT_\?(?:\s+(?:[,.]_PUNCT_[,.]\s+)?¿_PUNCT_¿.*?\?_PUNCT_\?)*")
-
-
-def remove_SPACE(input_path):
-    # Check if the directory exists
-    if os.path.isdir(input_path):
-        # List all files in the directory
-        files = os.listdir(input_path)
-
-        # Loop through each file
-        for file_name in files:
-            if file_name.endswith(".txt"):
-                file_path = os.path.join(input_path, file_name)
-
-                # Read the content of the file with the detected encoding
-                with open(file_path, "r", encoding="utf-8") as file:
-                    content = file.read()
-
-                # Replace _SPACE_ with an empty string
-                modified_content = content.replace("_SPACE_", "")
-
-                # Write the modified content back to the file
-                with open(file_path, "w", encoding="utf-8") as file:
-                    file.write(modified_content)
-
-
-def strip_speaker_labels(content):
-    return speaker_label.sub(lambda m: f"{m[1]}_{m[2]}_{m[3]}" if m[1] else "", content)
 
 
 def is_well_formed(word):
@@ -354,13 +135,7 @@ def is_well_formed(word):
 def is_adj(word):
     adj_match = re.search(r"^(.*)_ADJ_", word)
     lex_adj_match = re.search(r"_ADJ_(.+)", word)
-    return bool(
-        adj_match
-        and lex_adj_match
-        and is_well_formed(word)
-        and not word.endswith("mente")
-        and adj_match.group(1).lower() not in lateralized_verbs
-    )
+    return bool(adj_match and lex_adj_match and is_well_formed(word) and not word.endswith("mente"))
 
 
 def log_re_word(word):
@@ -373,22 +148,6 @@ def deaccent(word):
     return word.translate(str.maketrans("áéíóú", "aeiou"))
 
 
-def repair_lemma(word, lemma):
-    """repair_lemma undoes TagAnt lemmas cut from a feminine or plural form (acogedoro, morén, amigabl)."""
-    feminine = re.fullmatch(r"(.+)as?", word)
-    if feminine and re.search(r"[dts]oro$", lemma):
-        return lemma[:-1]
-    # -ón/-ona is a real pair (gritón); -én/-ín/-ún from -ena/-ina/-una is not
-    if feminine and re.search(r"[éíú]n$", lemma) and deaccent(lemma) == feminine.group(1):
-        return feminine.group(1) + "o"
-    if feminine and lemma.endswith("és") and deaccent(lemma) + "o" in eso_adjs:
-        return deaccent(lemma) + "o"
-    # Spanish words don't end in two consonants, so TagAnt dropped the -e
-    if re.search(r"[^aeiouáéíóú]{2}$", lemma) and word.startswith(lemma + "e"):
-        return lemma + "e"
-    return lemma
-
-
 def get_adj(word):
     adj_match = re.search(r"^(.*)_ADJ_", word)
     adv_match = re.search(r"_ADJ_(.+)", word)
@@ -396,14 +155,14 @@ def get_adj(word):
     adjective = adj_match.group(1)  # type: ignore
     lex_adjective = adv_match.group(1)  # type: ignore
 
-    lex_adjective = repair_lemma(adjective.lower(), lex_adjective.lower())
+    lex_adjective = lex_adjective.lower()
     # apocope corrections
     if lex_adjective in apocope_dict:
         lex_adjective = apocope_dict[lex_adjective]
     # only plural endings lose the -s; gris, gratis, francés are singular
     if re.search(r"[aeo]s$", lex_adjective) and lex_adjective != "lejos":
         lex_adjective = lex_adjective[:-1]
-    # TagAnt sometimes keeps the feminine lemma, and -dora/-tora/-sora come from masculine -or
+    # the lemmatizer sometimes keeps the feminine (soltera, pequeñita), and -dora/-tora/-sora come from masculine -or
     if re.search(r"[dts]ora$", lex_adjective):
         lex_adjective = lex_adjective[:-1]
     elif lex_adjective.endswith("a") and not (
@@ -488,36 +247,21 @@ def is_mas_bien(words, i):
     )
 
 
-def is_copula(word):
-    parts = word.split("_")
-    return parts[0].lower() in copulas or (len(parts) >= 3 and parts[-1].lower() in copula_lemmas)
-
-
 def add_verb(row_data, relations, words):
     # like Noun, the verb must be visible in Phr; the parse can reach past the segment
-    visible = relations and relations.verb.lower() in (w.split("_")[0].lower() for w in words)
+    visible = relations is not None and relations.verb.lower() in (w.split("_")[0].lower() for w in words)
     row_data["Verb"] = relations.verb if visible else "/"
     row_data["Inf_Verb"] = relations.inf_verb if visible else "/"
 
 
-# words both taggers call ADJ, NOUN or VERB that are always adverbs
-# the transformer tagger calls cerquita ADJ ("queda súper cerquita")
+# words the tagger calls ADJ, NOUN, VERB or PRON that are always adverbs ("queda súper cerquita")
 always_adverbs = {"entoes", "ahorita", "ahoritica", "cerquita"}
-# both taggers call lejísimos ADJ (TagAnt also VERB)
+# the tagger calls lejísimos ADJ
 isimo_adverb = re.compile(r"(lej|tard|cerqu)ísim[oa]s?")
 
 
-def is_weather_noun(words, i):
-    """is_weather_noun reports whether words[i] is the noun in mucho frío or hace (bastante) frío."""
-    before = [w.split("_")[0].lower() for w in words[max(0, i - 2) : i]]
-    if before and before[-1] in ("mucho", "tanto", "poco"):
-        return True
-    hacer = ("hace", "hacía", "hacia", "hizo", "hará", "haga", "hiciera", "hacer")
-    return bool(before) and (before[-1] in hacer or len(before) == 2 and before[0] in hacer and is_int(words[i - 1]))
-
-
 def retag(words):
-    """retag fixes host tags both taggers get wrong: entoes/ahorita ADV, poquito ADV or DET, poco DET, mucho frío NOUN."""
+    """retag fixes host tags the tagger gets wrong: entoes/ahorita/lejísimos ADV, poquito ADV or DET."""
     out = []
     for i, word in enumerate(words):
         parts = word.split("_")
@@ -536,10 +280,6 @@ def retag(words):
                     pos = "ADV"
                 elif pos == "ADJ":
                     pos = "DET"
-            elif re.fullmatch(r"poc[oa]s?", low) and pos == "ADJ":
-                pos = "DET"
-            elif low in ("frío", "frio", "calor") and pos == "ADJ" and is_weather_noun(words, i):
-                pos = "NOUN"
             word = f"{text}_{pos}_{lemma}"
         out.append(word)
     return out
@@ -564,6 +304,7 @@ def process_segment(segment, speaker, parse=None):
         if is_adj(word) and not is_fragment(words, i):
             adjective, lex_adjective = get_adj(word)
 
+            attributive, noun = "ambiguous", "/"
             if parse and parse[i]:
                 attributive, noun = parse[i].adj_type, parse[i].noun
                 # the parse spans past the segment, but the noun must be visible in Phr
@@ -571,25 +312,6 @@ def process_segment(segment, speaker, parse=None):
                     noun = "/"
                     if attributive == "attributive":
                         attributive = "ambiguous"
-            # noun adj
-            elif i > 0 and "_NOUN_" in words[i - 1] and not is_int(words[i - 1]):
-                attributive = "attributive"
-                noun = re.search(r"^(.*?)_", words[i - 1]).group(1)  # type: ignore
-            # adj noun
-            elif i < len(words) - 1 and "_NOUN_" in words[i + 1]:
-                attributive = "attributive"
-                noun = re.search(r"^(.*?)_", words[i + 1]).group(1)  # type: ignore
-            # noun int adj
-            elif i > 1 and "_NOUN_" in words[i - 2] and is_int(words[i - 1]):
-                attributive = "attributive"
-                noun = re.search(r"^(.*?)_", words[i - 2]).group(1)  # type: ignore
-            # cop int adj
-            elif i > 1 and is_copula(words[i - 2]) or i > 0 and is_copula(words[i - 1]):
-                attributive = "predicative"
-                noun = "/"
-            else:
-                attributive = "ambiguous"
-                noun = "/"
             if not re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑ/]+$", noun):
                 attributive = "ambiguous"
                 noun = "/"
@@ -612,9 +334,6 @@ def process_segment(segment, speaker, parse=None):
                 double = "/"
 
             if lex_adjective.endswith("ísimo"):
-                # muchísimos, tantísimas are quantifiers TagAnt calls ADJ
-                if lex_adjective.startswith(("muchísim", "tantísim")):
-                    continue
                 intensifier = "-ísimo"
                 adjective = adjective.replace("quísim", "c")
                 lex_adjective = lex_adjective.replace("quísim", "c")
@@ -644,8 +363,7 @@ def process_segment(segment, speaker, parse=None):
                 "Adj_type": attributive,
                 "Noun": noun.lower(),
             }
-            if parse is not None:
-                add_verb(row_data, parse[i], words)
+            add_verb(row_data, parse[i] if parse else None, words)
             rows.append(row_data)
 
         # IF NON-INT ADV
@@ -691,8 +409,7 @@ def process_segment(segment, speaker, parse=None):
                 "Adj_type": "/",
                 "Noun": "/",
             }
-            if parse is not None:
-                add_verb(row_data, parse[i], words)
+            add_verb(row_data, parse[i] if parse else None, words)
             rows.append(row_data)
     return rows
 
@@ -769,7 +486,7 @@ def fix_isimo_hosts(df):
     return df
 
 
-def analyze(input_path, output_filename=None, parses=None, clean_turns=True, drop_invariant=False):
+def analyze(input_path, output_filename=None, parses=None, drop_invariant=False):
     """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
     # no mas, tan
     # Create a list to store data frames
@@ -794,11 +511,6 @@ def analyze(input_path, output_filename=None, parses=None, clean_turns=True, dro
         with open(marked_file_path, "r", encoding="utf-8") as file:
             # Read entire file and replace all newlines
             content = file.read()
-            # tags made from uncleaned transcripts (TagAnt) still hold labels and interviewer speech
-            if clean_turns:
-                content = strip_speaker_labels(
-                    remove_interviewer_tagged(remove_other_turns(content, turn_label, turn_question))
-                )
             content = content.replace("\n", " ")
 
             # Split the content into segments based on custom sentence-ending punctuation
@@ -845,112 +557,6 @@ def analyze(input_path, output_filename=None, parses=None, clean_turns=True, dro
     return data
 
 
-def closest_verb_non_infinitive(row):
-    phrase = row["Phr_tagged"]
-    intensifier_pos = phrase.find(row["Adj"])
-
-    if intensifier_pos == -1:
-        return "/"
-
-    # Find the sentence containing the intensifier
-    # Split by periods and track positions
-    period_before = phrase.rfind(".", 0, intensifier_pos)
-    sentence_start = 0 if period_before == -1 else period_before + 1  # +1 to skip the period
-    sentence_end = phrase.find(".", intensifier_pos)
-    if sentence_end == -1:
-        sentence_end = len(phrase)
-
-    sentence = phrase[sentence_start:sentence_end]
-    # Adjust intensifier position relative to the sentence
-    intensifier_pos_in_sentence = intensifier_pos - sentence_start
-
-    # Initialize minimum distances and closest matches
-    min_distance_verb = float("inf")
-    min_distance_aux = float("inf")
-    closest_verb = None
-    closest_aux = None
-
-    # Regular expression to find verb and auxiliary patterns
-    pattern = r"\b(\w+)_(VERB|AUX)_(\w+)\b"
-
-    for match in re.finditer(pattern, sentence):
-        start_pos = match.start()
-        end_pos = match.end()
-        match_center = (start_pos + end_pos) // 2
-        distance = abs(match_center - intensifier_pos_in_sentence)
-
-        if "VERB" in match.group():
-            if distance < min_distance_verb:
-                min_distance_verb = distance
-                closest_verb = match.group(1)
-        elif "AUX" in match.group() and distance < min_distance_aux:
-            min_distance_aux = distance
-            closest_aux = match.group(1)
-
-    # Determine which is closer
-    if closest_verb and closest_aux:
-        return closest_verb if min_distance_verb < min_distance_aux else closest_aux
-    elif closest_verb:
-        return closest_verb
-    elif closest_aux:
-        return closest_aux
-    else:
-        return "/"
-
-
-def closest_verb_infinitive(row):
-    phrase = row["Phr_tagged"]
-    intensifier_pos = phrase.find(row["Adj"])
-
-    if intensifier_pos == -1:
-        return "/"
-
-    # Find the sentence containing the intensifier
-    period_before = phrase.rfind(".", 0, intensifier_pos)
-    sentence_start = 0 if period_before == -1 else period_before + 1
-    sentence_end = phrase.find(".", intensifier_pos)
-    if sentence_end == -1:
-        sentence_end = len(phrase)
-
-    sentence = phrase[sentence_start:sentence_end]
-    # Adjust intensifier position relative to the sentence
-    intensifier_pos_in_sentence = intensifier_pos - sentence_start
-
-    # Initialize minimum distances and closest matches
-    min_distance_verb = float("inf")
-    min_distance_aux = float("inf")
-    closest_verb = None
-    closest_aux = None
-
-    # Regular expression to find verb and auxiliary patterns
-    pattern = r"\b(\w+)_(VERB|AUX)_(\w+)\b"
-
-    for match in re.finditer(pattern, sentence):
-        start_pos = match.start()
-        end_pos = match.end()
-        match_center = (start_pos + end_pos) // 2
-        distance = abs(match_center - intensifier_pos_in_sentence)
-
-        if "VERB" in match.group():
-            if distance < min_distance_verb:
-                min_distance_verb = distance
-                closest_verb = match.group(3)
-        elif "AUX" in match.group() and distance < min_distance_aux:
-            min_distance_aux = distance
-            closest_aux = match.group(3)
-
-    # Determine which is closer
-    if closest_verb and closest_aux:
-        return closest_verb if min_distance_verb < min_distance_aux else closest_aux
-    elif closest_verb:
-        return closest_verb
-    elif closest_aux:
-        return closest_aux
-    else:
-        return "/"
-
-
-# make numbered based on speaker col
 def numero(row, count_dict=None):
     # Split the original label to get the speaker number
     if count_dict is None:
@@ -1132,25 +738,3 @@ def write_outputs(df, output, speaker_path, xlsx=False, csv=False):
         df.to_csv(output + ".csv", index=False)
         print(f"Saved {output}.csv")
     return df
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="data/tagged", help="folder of TagAnt word_POS_lemma .txt files")
-    parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
-    parser.add_argument(
-        "--drop-invariant", action="store_true", help="drop every row of a host that is never intensified"
-    )
-    parser.add_argument("--xlsx", action="store_true", help="also write the table as xlsx")
-    parser.add_argument("--csv", action="store_true", help="also write the table as csv")
-    args = parser.parse_args()
-
-    os.makedirs("output", exist_ok=True)
-    output = "output/intensifier_data_" + date.today().isoformat()
-    remove_SPACE(args.input)  # writes without space back to files
-    df = analyze(args.input, drop_invariant=args.drop_invariant)
-    df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
-    df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
-    write_outputs(df, output, args.speakers, xlsx=args.xlsx, csv=args.csv)
-
-    print("Make sure to manually check the -ísimo cases!")

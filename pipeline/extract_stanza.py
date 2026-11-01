@@ -1,4 +1,4 @@
-# tags the raw transcripts with stanza instead of TagAnt, then runs the same extraction as extract_tagant
+# tags the cleaned transcripts with stanza, corrects and parses the tags, then extracts host rows with extract
 
 import argparse
 import os
@@ -7,7 +7,7 @@ from collections import namedtuple
 from datetime import date
 from multiprocessing import get_context
 
-from extract_tagant import (
+from extract import (
     analyze,
     intensifier_list,
     speaker_data,
@@ -62,6 +62,7 @@ lateral_words = {
     "telmino": ("VERB", "terminar"),
     "duelmo": ("VERB", "dormir"),
     "sentalme": ("VERB", "sentar"),
+    "impolta": ("VERB", "importar"),
 }
 lateral_words |= {
     w: ("VERB", re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w))
@@ -69,7 +70,8 @@ lateral_words |= {
         "cocinal", "limpial", "llamal", "celebral", "gastal", "destacal", "explotal", "manejal", "hablal", "gualdal",
         "preocupal", "lleval", "adoptal", "pical", "bañal", "laval", "llenal", "regresal", "folmal", "logral",
         "disfrutal", "comental", "tratal", "llegal", "jugal", "dural", "salil", "comel", "sobresalil", "asistil",
-        "lucil", "recogel", "correl", "leel", "bebel", "tenel",
+        "lucil", "recogel", "correl", "leel", "bebel", "tenel", "estudial", "vivil", "consideral", "competil",
+        "pronuncial", "imaginal", "impactal", "paral",
     )
 }  # fmt: skip
 
@@ -77,7 +79,7 @@ _nlp = None
 
 
 def clean_field(text):
-    # spaces and underscores would break the word_POS_lemma format extract_tagant parses
+    # spaces and underscores would break the word_POS_lemma format extract parses
     return (text or "").replace(" ", "").replace("_", "-")
 
 
@@ -362,7 +364,7 @@ def _verb_vivo(tokens, i):
 
 
 def correct_tokens(tokens):
-    """correct_tokens fixes Stanza's closed list of systematic errors found by hand against TagAnt."""
+    """correct_tokens fixes Stanza's closed list of systematic errors, each found and checked by hand."""
     out = []
     for i, (text, upos, lemma) in enumerate(tokens):
         low = text.lower()
@@ -480,7 +482,7 @@ def correct_line(line):
 
 
 def correct_folder(input_folder, output_folder):
-    # raw tagger output stays untouched so it can still be compared against TagAnt
+    # raw tagger output stays untouched so rules can be rechecked against it
     os.makedirs(output_folder, exist_ok=True)
     for name in sorted(os.listdir(input_folder)):
         if not name.endswith(".txt"):
@@ -763,10 +765,7 @@ if __name__ == "__main__":
     os.makedirs("output", exist_ok=True)
     output = "output/intensifier_data_stanza_" + date.today().isoformat()
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
-    # stanza tags come from clean_transcripts' cleaned text, and their lines are sentences, not transcript turns
-    df = analyze(
-        args.corrected, None, parse_relations(args.parsed), clean_turns=False, drop_invariant=args.drop_invariant
-    )
+    df = analyze(args.corrected, None, parse_relations(args.parsed), drop_invariant=args.drop_invariant)
     write_outputs(df, output, args.speakers, xlsx=args.xlsx, csv=args.csv)
 
     print("Make sure to manually check the -ísimo cases!")

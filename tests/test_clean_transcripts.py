@@ -1,7 +1,7 @@
 import pytest
 from docx import Document
 
-from clean_transcripts import clean_data, remove_interviewer, remove_interviewer_tagged, remove_text
+from clean_transcripts import clean_data, remove_interviewer, remove_text
 
 
 def write_docx(path, paragraphs):
@@ -148,14 +148,6 @@ def test_interviewer_line_based(lines, kept):
 )
 def test_interviewer_inline(text, kept):
     assert remove_interviewer(text).split() == (kept or text).split()
-
-
-def test_interviewer_tagged_tokens_follow_word_spans():
-    lines = ["x_NOUN_x"] * 10 + [
-        "¿_PUNCT_¿ y_CCONJ_y por_ADP_por qué_PRON_qué le_PRON_él gustaría_VERB_gustar ir_VERB_ir ?_PUNCT_?",
-        "sí_INTJ_sí ,_PUNCT_, mucho_ADV_mucho",
-    ]
-    assert remove_interviewer_tagged("\n".join(lines)).split("\n")[10:] == ["", "sí_INTJ_sí ,_PUNCT_, mucho_ADV_mucho"]
 
 
 def test_interviewer_inline_keeps_quote_after_finished_sentence_and_long_generic_tu():

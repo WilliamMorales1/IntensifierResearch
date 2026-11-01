@@ -178,27 +178,6 @@ def remove_interviewer(text):
     return "".join(out)
 
 
-def remove_interviewer_tagged(content):
-    """remove_interviewer_tagged drops the tokens of word_UPOS_lemma lines that fall in interviewer speech."""
-    lines = [line.split() for line in content.split("\n")]
-    text = "\n".join(" ".join(t.split("_")[0] for t in tokens) for tokens in lines)
-    spans = interviewer_spans(text)
-    if not spans:
-        return content
-    out, pos = [], 0
-    for tokens in lines:
-        kept = []
-        for t in tokens:
-            word = t.split("_")[0]
-            if not any(a <= pos < b for a, b in spans):
-                kept.append(t)
-            pos += len(word) + 1
-        if not tokens:
-            pos += 1
-        out.append(" ".join(kept))
-    return "\n".join(out)
-
-
 # turn labels left inside a turn ("J: -pues", "E: ¿cómo?", "LMP: -si", "G.: hasta luego")
 speaker_label = re.compile(r"(?<!\w)[A-ZÁÉÍÓÚÑ]{1,3}\.?\s?:\s*-?\s*")
 turn_label = re.compile(r"(?<!\w)([A-ZÁÉÍÓÚÑ]{1,3})\.?\s?:")
@@ -207,9 +186,9 @@ turn_question = re.compile(r"[^?\n]*?\?(?:[\s,.]{0,3}¿[^?\n]*\?)*")
 third_voice = re.compile(r"\s*\S*?tercera voz")
 
 
-def remove_other_turns(text, label=turn_label, question=turn_question):
+def remove_other_turns(text):
     """remove_other_turns drops every labeled turn not spoken by the participant (interviewer, third voices)."""
-    matches = list(label.finditer(text))
+    matches = list(turn_label.finditer(text))
     names = Counter(m[1] for m in matches)
     # one-line transcripts run the participant's answer on after the question ("E: ¿cómo? difícil, ...");
     # in line-based ones every labeled line is someone else (interviewer, relative, radio)
@@ -227,7 +206,7 @@ def remove_other_turns(text, label=turn_label, question=turn_question):
         if eol != -1:
             end = min(end, eol)
         # the interviewer's turn ends with its question(s): "E.: a, se nota ¿no? ¿cuántos años llevan juntos?, me decía ..."
-        q = question.match(text, m.end(), end) if inline else None
+        q = turn_question.match(text, m.end(), end) if inline else None
         if q:
             end = min(end, q.end())
         out.append(text[pos : m.start()])

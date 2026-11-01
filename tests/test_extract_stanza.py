@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from extract import analyze
 from extract_stanza import (
     Dep,
     chunk_sentence,
@@ -14,7 +15,6 @@ from extract_stanza import (
     tag_doc,
     tag_word,
 )
-from extract_tagant import analyze
 
 
 def word(text, upos, lemma):
@@ -277,6 +277,8 @@ def test_join_paragraphs_ends_turns_with_period():
         ("muy_ADV_mucho mona_ADJ_mono", "muy_ADV_mucho mona_ADJ_mono"),
         ("muy_ADV_mucho consentio_ADJ_consentio", "muy_ADV_mucho consentio_ADJ_consentido"),
         ("bien_ADV_bien velde_ADJ_velde", "bien_ADV_bien velde_ADJ_verde"),
+        ("pa_ADP_para estudial_ADJ_estudial", "pa_ADP_para estudial_VERB_estudiar"),
+        ("no_ADV_no impolta_ADJ_impolta", "no_ADV_no impolta_VERB_importar"),
     ],
 )
 def test_correct_line(line, fixed):
