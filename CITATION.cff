@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "This is the code behind the paper below; please cite the paper."
+title: "IntensifierResearch: Spanish intensifier extraction from sociolinguistic interviews"
+type: software
+authors:
+  - given-names: William
+    family-names: Morales
+license: MIT
+repository-code: "https://github.com/WilliamMorales1/IntensifierResearch"
+version: 0.1.0
+preferred-citation:
+  type: article
+  title: "A variationist study of Spanish intensifiers"
+  authors:
+    - given-names: Rafael
+      family-names: Orozco
+      orcid: "https://orcid.org/0000-0001-9232-0287"
+    - given-names: William
+      family-names: Morales
+    - given-names: Latasha
+      family-names: Valenzuela
+  journal: "Proceedings of the Linguistic Society of America"
+  volume: 11
+  issue: 1
+  year: 2026
+  doi: "10.3765/plsa.v11i1.6091"
