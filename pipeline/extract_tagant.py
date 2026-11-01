@@ -278,6 +278,9 @@ non_gradable = {
     "ahora",
     "ahorita",
     "luego",
+    "anoche",
+    "acerca",
+    "primero",
     "solo",
     "sólo",
     "solamente",
@@ -470,15 +473,16 @@ def is_fragment(words, i):
     host = words[i].split("_")[0].lower()
     if len(host) <= 2:
         return host not in ("ya", "sí", "ni")
-    # cut-off bueno, often with the restart outside the segment
-    if host == "bue":
+    # cut-off bueno, bien, todo, often with the restart outside the segment
+    if host in ("bue", "bie", "tod"):
         return True
-    if len(host) > 4:
+    if len(host) > 6:
         return False
-    for word in words[i + 1 : i + 5]:
-        later = word.split("_")[0].lower()
+    for j in range(i + 1, min(i + 5, len(words))):
+        later = words[j].split("_")[0].lower()
         if later.startswith(host) and not inflection.fullmatch(later[len(host) :]):
-            return later != host
+            # longer hosts are often real words ("cerca ... cercanías"), so need a restarted intensifier
+            return later != host and (len(host) <= 4 or is_int(words[j - 1]))
     return False
 
 

@@ -233,6 +233,9 @@ def test_fixed_expression_only_with_its_intensifier():
         "bastante_PRON_bastante donde_ADV_donde",
         "bien_ADV_bien ya_ADV_ya",
         "mucho_ADV_mucho antes_ADV_antes",
+        "mucho_PRON_mucho anoche_ADV_anoche",
+        "bastante_PRON_bastante acerca_ADV_acerca de_ADP_de",
+        "bien_ADV_bien primero_ADV_primero",
     ],
 )
 def test_non_gradable_adverb_hosts_dropped(segment):
@@ -255,6 +258,8 @@ def test_mas_bien_is_not_intensified():
         ("muy_ADV_muy d_ADJ_d muy_ADV_muy rápido_ADJ_rápido", ["rápido"]),
         ("muy_ADV_muy ca_ADJ_ca era_AUX_ser muy_ADV_muy calmado_ADJ_calmado", ["calmado"]),
         ("muy_ADV_muy cer_ADV_cer cerca_ADV_cerca", ["cerca"]),
+        ("es_AUX_ser muy_ADV_muy comple_ADJ_comple es_AUX_ser muy_ADV_muy complejo_ADJ_complejo", ["complejo"]),
+        ("muy_ADV_muy cerca_ADV_cerca en_ADP_en cercanías_NOUN_cercanía", ["cerca"]),
         ("muy_ADV_muy poco_ADV_poco ,_PUNCT_, muy_ADV_muy pocos_DET_poco", ["poco"]),
         ("muy_ADV_muy mal_ADV_mal lo_PRON_él único_ADJ_único maluco_ADJ_maluco", ["mal", "único", "maluco"]),
         ("muy_ADV_muy rico_ADJ_rico ,_PUNCT_, muy_ADV_muy rico_ADJ_rico", ["rico", "rico"]),
@@ -468,8 +473,9 @@ def test_retag_quantifiers_are_not_hosts(segment):
     assert process_segment(segment, "S01") == []
 
 
-def test_bue_without_restart_is_fragment():
-    assert process_segment("sería_AUX_ser muy_ADV_mucho bue_ADV_bue podría_AUX_poder", "S01") == []
+@pytest.mark.parametrize("host", ["bue", "bie", "tod"])
+def test_cut_off_without_restart_is_fragment(host):
+    assert process_segment(f"sería_AUX_ser muy_ADV_mucho {host}_ADV_{host} podría_AUX_poder", "S01") == []
 
 
 @pytest.mark.parametrize(

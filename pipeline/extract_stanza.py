@@ -28,6 +28,26 @@ parse_processors = {"depparse": "combined_charlm"}
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
+# Puerto Rican /r/ lateralized to /l/ in adjective lemmas
+lemma_fixes |= {
+    w: re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w)
+    for w in (
+        "cielto", "impoltante", "superiol", "mejol", "fuelte", "milital", "avelgonzado", "muelto", "menol",
+        "univelsitario", "olganizado", "celcano", "populal", "unifolme", "nelvioso", "coltado", "similal", "colto",
+        "pueltorriqueño", "familial", "regulal", "celulal", "pelfecto", "abielto", "insopoltable", "peol",
+        "pelfeccionista", "lalgo",
+    )
+}  # fmt: skip
+# lateralized non-adjectives the tagger calls ADJ
+lateral_words = {
+    "celca": ("ADV", "cerca"),
+    "alrededol": ("ADV", "alrededor"),
+    "talde": ("ADV", "tarde"),
+    "vel": ("VERB", "ver"),
+    "calne": ("NOUN", "carne"),
+    "palte": ("NOUN", "parte"),
+    "hogal": ("NOUN", "hogar"),
+}
 
 _nlp = None
 
@@ -187,7 +207,7 @@ def _discourse_tail(tokens, i):
         or low in intensifier_list + ["lo", "tan", "más", "mas", "por", "poco"] + colors
         or low.endswith("mente")
         # "un cambio claro ?"
-        or prev[1] == "NOUN" and i > 1 and tokens[i - 2][0].lower() in ("un", "una")
+        or (prev[1] == "NOUN" and i > 1 and tokens[i - 2][0].lower() in ("un", "una"))
     )
 
 
@@ -220,7 +240,11 @@ def _time_media(tokens, i):
     prev, nxt, _ = _around(tokens, i)
     if nxt[0].lower() in ("día", "noche"):
         return True
-    return prev[0].lower() == "y" and i > 1 and (tokens[i - 2][1] == "NUM" or tokens[i - 2][0].lower() in ("hora", "horas"))
+    return (
+        prev[0].lower() == "y"
+        and i > 1
+        and (tokens[i - 2][1] == "NUM" or tokens[i - 2][0].lower() in ("hora", "horas"))
+    )
 
 
 def _adverbial_total(tokens, i):
@@ -316,9 +340,8 @@ def correct_tokens(tokens):
             low == "total" and _adverbial_total(tokens, i) or low == "seguro" and _adverbial_seguro(tokens, i)
         ):
             upos = "ADV"
-        # Puerto Rican lateralized cerca
-        elif low == "celca":
-            upos, lemma = "ADV", "cerca"
+        elif low in lateral_words and (low == "celca" or upos == "ADJ"):
+            upos, lemma = lateral_words[low]
         elif upos in ("NOUN", "PROPN", "VERB") and low in dialect_adjs:
             upos, lemma = "ADJ", dialect_adjs[low]
         # muy only modifies a noun used as an adjective: "muy amigo", "muy niña", "muy trabajadores"
@@ -327,6 +350,9 @@ def correct_tokens(tokens):
         elif upos == "ADJ" and re.search(r"(d|t|ch|s)[oa]s?$", low) and re.search(r"[aeií]r$", lemma):
             # participles get the verb as lemma (dado -> dar), but Lex_Adj wants the adjective
             lemma = re.sub(r"[oa]s?$", "o", low)
+        elif upos == "ADJ" and re.search(r".{3}ao$", lemma):
+            # dropped intervocalic d: "complicao", "pesao", "calmao"
+            lemma = lemma[:-2] + "ado"
         out.append((text, upos, lemma_fixes.get(lemma, lemma)))
     return out
 
