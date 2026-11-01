@@ -391,17 +391,18 @@ def test_tagant_pipeline_end_to_end(tmp_path):
     (tagged / "notes.md").write_text("ignored", encoding="utf-8")
     speakers = tmp_path / "speakers.xlsx"
     pd.DataFrame({"Speaker": ["S01"], "Gender": ["mujer"]}).to_excel(speakers, index=False)
-    output = str(tmp_path / "out.csv")
+    output = str(tmp_path / "out")
 
-    df = analyze(str(tagged), output)
+    df = analyze(str(tagged))
     df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
     df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
-    df = write_outputs(df, output, str(speakers))
+    df = write_outputs(df, output, str(speakers), xlsx=True, csv=True)
 
     with sqlite3.connect(tmp_path / "out.sqlite") as con:
         back = pd.read_sql("SELECT * FROM intensifier_data", con)
     pd.testing.assert_frame_equal(back, df, check_dtype=False)
     assert (tmp_path / "out.xlsx").exists()
+    pd.testing.assert_frame_equal(pd.read_csv(tmp_path / "out.csv", dtype=str), df.astype(str), check_dtype=False)
     row = df.iloc[0]
     assert len(df) == 1
     assert (row["Int"], row["Adj"], row["Adj_type"], row["Verb"], row["Gender"]) == (

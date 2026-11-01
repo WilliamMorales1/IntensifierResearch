@@ -728,6 +728,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--drop-invariant", action="store_true", help="drop every row of a host that is never intensified"
     )
+    parser.add_argument("--xlsx", action="store_true", help="also write the table as xlsx")
+    parser.add_argument("--csv", action="store_true", help="also write the table as csv")
     parser.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 
@@ -736,12 +738,12 @@ if __name__ == "__main__":
     parse_folder(args.corrected, args.parsed, args.workers)
 
     os.makedirs("output", exist_ok=True)
-    output = "output/intensifier_data_stanza_" + date.today().isoformat() + ".csv"
+    output = "output/intensifier_data_stanza_" + date.today().isoformat()
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
     # stanza tags come from clean_transcripts' cleaned text, and their lines are sentences, not transcript turns
     df = analyze(
-        args.corrected, output, parse_relations(args.parsed), clean_turns=False, drop_invariant=args.drop_invariant
+        args.corrected, None, parse_relations(args.parsed), clean_turns=False, drop_invariant=args.drop_invariant
     )
-    write_outputs(df, output, args.speakers)
+    write_outputs(df, output, args.speakers, xlsx=args.xlsx, csv=args.csv)
 
     print("Make sure to manually check the -ísimo cases!")

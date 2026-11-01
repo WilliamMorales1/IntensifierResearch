@@ -10,7 +10,7 @@ Two taggers produce the same columns: [TagAnt](https://www.laurenceanthony.net/s
 conda env create -f environment.yml
 conda activate intensifier-research
 python pipeline/clean_transcripts.py   # data/original/*.docx -> data/text/*.txt
-python pipeline/extract_stanza.py      # data/text -> output/intensifier_data_stanza_<date>.{csv,xlsx,sqlite}
+python pipeline/extract_stanza.py      # data/text -> output/intensifier_data_stanza_<date>.sqlite
 ```
 
 Needs [Miniforge](https://github.com/conda-forge/miniforge) (conda), plus [LibreOffice](https://www.libreoffice.org/) for old `.doc` transcripts. The first Stanza run downloads the Spanish models (~130 MB).
@@ -29,13 +29,14 @@ Needs [Miniforge](https://github.com/conda-forge/miniforge) (conda), plus [Libre
 | Clean | `clean_transcripts.py` | `.docx` to one turn per line. Drops parentheticals, labeled interviewer, relative and third-voice turns, then remaining speaker labels (`J: -pues`, `E.: ¿cómo?`). Also removes unlabeled interviewer speech: questions addressed to the participant (*usted*, *tú*, 2nd-person verbs), questions run together with them, and their lead-in. Keeps echoes (*¿mi casa?*), tag questions (*¿no le parece?*) and reported speech. |
 | Tag (Stanza) | `extract_stanza.py` | Tags `data/text` into `data/stanza_tagged` (raw, never edited), applies `correct_tokens` into `data/stanza_corrected`, dependency-parses that into `data/stanza_parsed` (CoNLL-U). Every stage skips finished files, so an interrupted run resumes. |
 | Tag (TagAnt) | TagAnt GUI | Spanish model, Display Information "word+pos_tag+lemma", input `data/text`, output `data/tagged`. |
-| Extract | `extract_tagant.py` | Shared by both taggers. Splits at sentence punctuation, finds each host and the intensifier right before it, normalizes lemmas (apocope, gender, number, *-ísimo*, *archi-*), applies the extraction rules, and writes csv, xlsx and SQLite. |
+| Extract | `extract_tagant.py` | Shared by both taggers. Splits at sentence punctuation, finds each host and the intensifier right before it, normalizes lemmas (apocope, gender, number, *-ísimo*, *archi-*), applies the extraction rules, and writes SQLite (xlsx and csv with `--xlsx`, `--csv`). |
 | Compare | `compare_taggers.py` | Aligns TagAnt and Stanza tokens and writes every disagreement to `output/tagger_disagreements.tsv`. |
 
 ```fish
 python pipeline/extract_tagant.py                        # TagAnt: data/tagged -> output/intensifier_data_<date>.*
 python pipeline/extract_stanza.py --workers 2            # fewer workers, ~1.8 GB RAM each
 python pipeline/extract_stanza.py --drop-invariant       # only hosts intensified at least once
+python pipeline/extract_stanza.py --xlsx --csv           # also write xlsx and csv next to the sqlite
 python pipeline/compare_taggers.py --stanza data/stanza_corrected
 ```
 
@@ -43,7 +44,7 @@ Tagging and parsing all 314 transcripts takes about 2 hours each on a 4-core lap
 
 ## Output
 
-`output/intensifier_data[_stanza]_<date>.xlsx` and `.sqlite` hold the full table; the `.csv` is the extraction stage only (no Verb, Number, Syllable or speaker columns).
+`output/intensifier_data[_stanza]_<date>.sqlite` holds the full table. `--xlsx` and `--csv` write the same table as `.xlsx` and `.csv`.
 
 | Column | Meaning |
 | --- | --- |

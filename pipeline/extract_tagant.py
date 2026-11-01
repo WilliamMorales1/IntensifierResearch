@@ -755,7 +755,7 @@ def fix_isimo_hosts(df):
     return df
 
 
-def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_invariant=False):
+def analyze(input_path, output_filename=None, parses=None, clean_turns=True, drop_invariant=False):
     """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
     # no mas, tan
     # Create a list to store data frames
@@ -826,8 +826,8 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_inv
     print("Successfully created data")
     print(f"re- words saved to {re_words}")
 
-    # Save the DataFrame to a CSV file
-    data.to_csv(output_filename, index=False)
+    if output_filename:
+        data.to_csv(output_filename, index=False)
     return data
 
 
@@ -1096,8 +1096,8 @@ def to_sqlite(df, output_filename):
     print(f"Saved SQLite database to {output_filename}")
 
 
-def write_outputs(df, output, speaker_path):
-    """write_outputs adds Number and Syllable, merges speaker metadata if present, and saves xlsx and sqlite."""
+def write_outputs(df, output, speaker_path, xlsx=False, csv=False):
+    """write_outputs adds Number and Syllable, merges speaker metadata if present, and saves output.sqlite plus optional xlsx and csv."""
     number_counts = {}
     df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
     df["Syllable"] = df["Adj"].apply(count_syllables)
@@ -1110,8 +1110,13 @@ def write_outputs(df, output, speaker_path):
         # commas would split cells in tools that re-read the csv naively
         df[col] = df[col].str.replace(",", "", regex=False)
 
-    df.to_excel(output[:-4] + ".xlsx", index=False)
-    to_sqlite(df, output[:-4] + ".sqlite")
+    to_sqlite(df, output + ".sqlite")
+    if xlsx:
+        df.to_excel(output + ".xlsx", index=False)
+        print(f"Saved {output}.xlsx")
+    if csv:
+        df.to_csv(output + ".csv", index=False)
+        print(f"Saved {output}.csv")
     return df
 
 
@@ -1122,14 +1127,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--drop-invariant", action="store_true", help="drop every row of a host that is never intensified"
     )
+    parser.add_argument("--xlsx", action="store_true", help="also write the table as xlsx")
+    parser.add_argument("--csv", action="store_true", help="also write the table as csv")
     args = parser.parse_args()
 
     os.makedirs("output", exist_ok=True)
-    output = "output/intensifier_data_" + date.today().isoformat() + ".csv"
+    output = "output/intensifier_data_" + date.today().isoformat()
     remove_SPACE(args.input)  # writes without space back to files
-    df = analyze(args.input, output, drop_invariant=args.drop_invariant)
+    df = analyze(args.input, drop_invariant=args.drop_invariant)
     df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
     df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
-    write_outputs(df, output, args.speakers)
+    write_outputs(df, output, args.speakers, xlsx=args.xlsx, csv=args.csv)
 
     print("Make sure to manually check the -ísimo cases!")
