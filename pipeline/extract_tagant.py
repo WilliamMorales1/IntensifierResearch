@@ -299,6 +299,15 @@ non_gradable = {
     "prácticamente",
     "simplemente",
     "económicamente",
+    # discourse and function words the taggers call ADV ("muy digamos", "bien hasta con", "casi toos los días")
+    "digamos",
+    "hasta",
+    "tanto",
+    "igual",
+    "como",
+    "cuando",
+    "sino",
+    "toos",
 }
 
 # endings that turn a host into a fuller form of the same word rather than completing a cut-off one
@@ -418,10 +427,13 @@ def is_adv(word):
 
 
 def get_adv(word):
-    adv_match = re.search(r"^(.*)_ADV_", word)
-    adverb = adv_match.group(1)  # type: ignore
+    adv_match = re.search(r"^(.*)_ADV_(.*)", word)
+    adverb, lemma = adv_match.group(1), adv_match.group(2)  # type: ignore
     if adverb.startswith("re"):
         log_re_word(adverb)
+    # Stanza's corrected lemma of a Puerto Rican lateralized adverb (celca -> cerca, talde -> tarde)
+    if lemma.lower() != adverb.lower() and re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", adverb.lower()) == lemma.lower():
+        return lemma.lower()
     return adverb.lower()
 
 
@@ -443,8 +455,8 @@ def is_fragment(words, i):
     host = words[i].split("_")[0].lower()
     if len(host) <= 2:
         return host not in ("ya", "sí", "ni")
-    # cut-off bueno, bien, todo, often with the restart outside the segment
-    if host in ("bue", "bie", "tod"):
+    # cut-off bueno, bien, todo, nunca, often with the restart outside the segment
+    if host in ("bue", "bie", "tod", "nun"):
         return True
     if len(host) > 6:
         return False
@@ -491,6 +503,8 @@ def add_verb(row_data, relations, words):
 # words both taggers call ADJ, NOUN or VERB that are always adverbs
 # the transformer tagger calls cerquita ADJ ("queda súper cerquita")
 always_adverbs = {"entoes", "ahorita", "ahoritica", "cerquita"}
+# both taggers call lejísimos ADJ (TagAnt also VERB)
+isimo_adverb = re.compile(r"(lej|tard|cerqu)ísim[oa]s?")
 
 
 def is_weather_noun(words, i):
@@ -510,7 +524,7 @@ def retag(words):
         if len(parts) == 3:
             text, pos, lemma = parts
             low = text.lower()
-            if low in always_adverbs and pos != "ADV":
+            if (low in always_adverbs or isimo_adverb.fullmatch(low)) and pos != "ADV":
                 pos = "ADV"
             elif re.fullmatch(r"poquit[oa]s?", low) and pos in ("ADJ", "NOUN"):
                 before = words[i - 1].split("_") if i > 0 else []

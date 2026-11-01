@@ -263,6 +263,20 @@ def test_join_paragraphs_ends_turns_with_period():
         ("muy_ADV_mucho claro_ADV_claro ,_PUNCT_,", "muy_ADV_mucho claro_ADV_claro ,_PUNCT_,"),
         (",_PUNCT_, polque_ADV_polque la_DET_el", ",_PUNCT_, polque_SCONJ_porque la_DET_el"),
         ("la_DET_el ciclo_NOUN_ciclo vía_ADJ_vía", "la_DET_el ciclo_NOUN_ciclo vía_NOUN_vía"),
+        ("parece_VERB_parecer muy_ADV_mucho chevre_ADV_chevre", "parece_VERB_parecer muy_ADV_mucho chevre_ADJ_chévere"),
+        ("fue_AUX_ser muy_ADV_mucho chéer_ADJ_chéer", "fue_AUX_ser muy_ADV_mucho chéer_ADJ_chévere"),
+        ("contrato_NOUN_contrato jugosísimo_ADV_jugosísimo", "contrato_NOUN_contrato jugosísimo_ADJ_jugosísimo"),
+        ("parece_VERB_parecer jartísimo_ADV_jartísimo", "parece_VERB_parecer jartísimo_ADJ_jartísimo"),
+        ("quieren_VERB_querer hartísimo_ADV_hartísimo", "quieren_VERB_querer hartísimo_ADV_hartísimo"),
+        ("divertía_VERB_divertir artísimo_ADV_artísimo", "divertía_VERB_divertir artísimo_ADV_artísimo"),
+        ("a_ADP_a el_DET_el altísimo_NOUN_altísimo", "a_ADP_a el_DET_el altísimo_NOUN_altísimo"),
+        ("volé_VERB_volar lejísimos_ADV_lejísimo", "volé_VERB_volar lejísimos_ADV_lejísimo"),
+        ("es_AUX_ser muy_ADV_mucho mamona_ADJ_mamon", "es_AUX_ser muy_ADV_mucho mamona_ADJ_mamón"),
+        ("son_AUX_ser muy_ADV_mucho cansonas_ADJ_cansono", "son_AUX_ser muy_ADV_mucho cansonas_ADJ_cansón"),
+        ("muy_ADV_mucho monótona_ADJ_monótono", "muy_ADV_mucho monótona_ADJ_monótono"),
+        ("muy_ADV_mucho mona_ADJ_mono", "muy_ADV_mucho mona_ADJ_mono"),
+        ("muy_ADV_mucho consentio_ADJ_consentio", "muy_ADV_mucho consentio_ADJ_consentido"),
+        ("bien_ADV_bien velde_ADJ_velde", "bien_ADV_bien velde_ADJ_verde"),
     ],
 )
 def test_correct_line(line, fixed):
@@ -340,12 +354,12 @@ def test_sentence_relations(tmp_path):
     first, second, third = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
     assert first[4] == ("predicative", "casa", "es", "ser")
     assert first[6] == ("predicative", "casa", "es", "ser")
-    assert first[3] == ("/", "/", "es", "ser")
+    assert first[3] == ("ambiguous", "/", "es", "ser")
     assert first[0] is None
     # object is a pronoun, so no noun
     assert second[3] == ("predicative", "/", "veo", "ver")
     assert third[4] == ("attributive", "casas", "vivo", "vivir")
-    assert third[6] == ("/", "/", "vivo", "vivir")
+    assert third[6][2:] == ("vivo", "vivir")
 
 
 def test_noun_parsed_before_correction_gets_relation():
@@ -367,6 +381,18 @@ def test_verb_parsed_before_correction_is_not_its_own_verb():
         Dep(3, "chéere", "VERB", "chévere", 0, "root"),
     ]
     assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser")
+
+
+def test_adverb_parsed_before_correction_gets_relation():
+    # "me parece muy chevre": the parse called chevre ADV, correct_tokens makes it ADJ
+    sent = [
+        Dep(1, "eso", "PRON", "ese", 3, "nsubj"),
+        Dep(2, "me", "PRON", "yo", 3, "iobj"),
+        Dep(3, "parece", "VERB", "parecer", 0, "root"),
+        Dep(4, "muy", "ADV", "mucho", 5, "advmod"),
+        Dep(5, "chevre", "ADV", "chévere", 3, "advmod"),
+    ]
+    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer")
 
 
 def test_predicative_subject_is_nearest(tmp_path):

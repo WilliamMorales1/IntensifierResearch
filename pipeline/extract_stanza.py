@@ -28,7 +28,9 @@ parse_processors = {"depparse": "combined_bertin-roberta"}
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
-lemma_fixes |= {"chéere": "chévere", "chevre": "chévere", "primelo": "primero"}
+lemma_fixes |= {"chéere": "chévere", "chevre": "chévere", "chéer": "chévere", "primelo": "primero"}
+# dropped intervocalic d in -ido ("consentio", "tímia")
+lemma_fixes |= {"consentio": "consentido", "tímio": "tímido", "conocío": "conocido"}
 # Puerto Rican /r/ lateralized to /l/ in adjective lemmas
 lemma_fixes |= {
     w: re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w)
@@ -36,7 +38,7 @@ lemma_fixes |= {
         "cielto", "impoltante", "superiol", "mejol", "fuelte", "milital", "avelgonzado", "muelto", "menol",
         "univelsitario", "olganizado", "celcano", "populal", "unifolme", "nelvioso", "coltado", "similal", "colto",
         "pueltorriqueño", "familial", "regulal", "celulal", "pelfecto", "abielto", "insopoltable", "peol",
-        "pelfeccionista", "lalgo", "pelsonal",
+        "pelfeccionista", "lalgo", "pelsonal", "mayol", "velde", "diveltido", "solal", "particulal", "cualto",
     )
 }  # fmt: skip
 # lateralized non-adjectives the tagger calls ADJ
@@ -143,8 +145,18 @@ fillers = {
 discourse_adjs = ("bueno", "claro", "exacto", "listo", "cierto")
 # hues that "claro" can modify ("moreno claro") even when the tagger calls them NOUN
 colors = ["moreno", "morena", "azul", "verde", "rojo", "rosado", "café", "gris", "amarillo", "marrón", "morado"]
-# Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN or VERB
-dialect_adjs = {"chéere": "chévere", "chevre": "chévere", "chevere": "chévere", "conchudo": "conchudo"}
+# Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN, VERB or ADV
+dialect_adjs = {
+    "chéere": "chévere",
+    "chéer": "chévere",
+    "chevre": "chévere",
+    "chevere": "chévere",
+    "conchudo": "conchudo",
+}
+# -ísimo forms that are adverbs (lejísimos, muchísimo); the tagger calls jugosísimo, jartísimo ADV too
+isimo_adverbs = re.compile(r"(much|ch|tant|h?art|lej|tard|cerqu|rapid|tempran|pront|poquit)ísim[oa]s?")
+# real -ono adjectives; other -ono lemmas of -ona words are -ón ones the lemmatizer misread (mamona, cansonas)
+ono_adjs = {"mono", "nono", "monótono", "autóctono"}
 # nouns after muy that are not used as adjectives ("muy falta de", "muy toma trago"), or are cut-off words
 muy_nouns = {"gente", "cosas", "parte", "falta", "toma", "pulpa", "maleza", "masa", "carga", "calma", "dema", "ente"}
 # second halves of compound nouns the tagger reads as noun + adjective
@@ -434,7 +446,7 @@ def correct_tokens(tokens):
             low == "total" and _adverbial_total(tokens, i) or low == "seguro" and _adverbial_seguro(tokens, i)
         ):
             upos = "ADV"
-        elif upos in ("NOUN", "PROPN", "VERB") and low in dialect_adjs:
+        elif upos in ("NOUN", "PROPN", "VERB", "ADV") and low in dialect_adjs:
             upos, lemma = "ADJ", dialect_adjs[low]
         # muy only modifies a noun used as an adjective: "muy amigo", "muy niña", "muy trabajadores"
         elif upos == "NOUN" and i > 0 and tokens[i - 1][0].lower() == "muy" and len(low) > 3 and low not in muy_nouns:
@@ -442,6 +454,16 @@ def correct_tokens(tokens):
         elif upos == "ADJ" and re.search(r"(d|t|ch|s)[oa]s?$", low) and re.search(r"[aeií]r$", lemma):
             # participles get the verb as lemma (dado -> dar), but Lex_Adj wants the adjective
             lemma = re.sub(r"[oa]s?$", "o", low)
+        elif upos == "ADV" and re.fullmatch(r".+ísim[oa]s?", low) and not isimo_adverbs.fullmatch(low):
+            upos, lemma = "ADJ", re.sub(r"[oa]s?$", "o", low)
+        elif (
+            upos == "ADJ"
+            and re.fullmatch(r".+onas?", low)
+            and not low.endswith(("ciona", "cionas"))
+            and re.fullmatch(r".+on[o]?", lemma)
+            and lemma not in ono_adjs
+        ):
+            lemma = re.sub(r"ono?$", "ón", lemma)
         elif upos == "ADJ" and re.search(r".{3}ao$", lemma):
             # dropped intervocalic d: "complicao", "pesao", "calmao"
             lemma = lemma[:-2] + "ado"
@@ -656,7 +678,8 @@ def sentence_relations(sent):
         if w.upos not in ("ADJ", "ADV", "NOUN", "PROPN", "VERB"):
             out.append(None)
             continue
-        adj_type, noun = adjective_relation(sent, w) if w.upos != "ADV" else ("/", "/")
+        # ADV too, since correct_tokens can make a parsed ADV an ADJ ("muy chevre", "jugosísimo")
+        adj_type, noun = adjective_relation(sent, w)
         verb = governing_verb(sent, w)
         out.append(Relations(adj_type, noun, verb.text if verb else "/", verb.lemma if verb else "/"))
     return out

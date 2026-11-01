@@ -238,6 +238,10 @@ def test_fixed_expression_only_with_its_intensifier():
         "mucho_PRON_mucho anoche_ADV_anoche",
         "bastante_PRON_bastante acerca_ADV_acerca de_ADP_de",
         "bien_ADV_bien primero_ADV_primero",
+        "pasó_VERB_pasar muy_ADV_mucho digamos_ADV_decir",
+        "va_VERB_ir bien_ADV_bien hasta_ADV_hasta con_ADP_con",
+        "hablaba_VERB_hablar mucho_ADV_mucho tanto_ADV_tanto de_ADP_de",
+        "casi_ADV_casi toos_ADV_too los_DET_el días_NOUN_día",
     ],
 )
 def test_non_gradable_adverb_hosts_dropped(segment):
@@ -462,6 +466,9 @@ def test_lateralized_verb_is_not_adjective(segment):
         ("ahorita_PRON_ahorita no_ADV_no", "ahorita"),
         ("queda_VERB_quedar súper_ADV_súper cerquita_ADJ_cerquita", "cerquita"),
         ("hago_VERB_hacer muy_ADV_mucho poquito_ADJ_poquito", "poquito"),
+        ("estábamos_AUX_estar lejísimos_ADJ_lejísimo", "lejos"),
+        ("van_VERB_ir lejísimos_VERB_lejísir", "lejos"),
+        ("es_AUX_ser muy_ADV_mucho celca_ADV_cerca", "cerca"),
     ],
 )
 def test_retag_always_adverbs(segment, host):
@@ -483,7 +490,7 @@ def test_retag_quantifiers_are_not_hosts(segment):
     assert process_segment(segment, "S01") == []
 
 
-@pytest.mark.parametrize("host", ["bue", "bie", "tod"])
+@pytest.mark.parametrize("host", ["bue", "bie", "tod", "nun"])
 def test_cut_off_without_restart_is_fragment(host):
     assert process_segment(f"sería_AUX_ser muy_ADV_mucho {host}_ADV_{host} podría_AUX_poder", "S01") == []
 
