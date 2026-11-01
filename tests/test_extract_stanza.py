@@ -215,6 +215,28 @@ def test_predicative_subject_is_nearest(tmp_path):
     assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser")
 
 
+def test_adjective_under_copular_verb_is_predicative(tmp_path):
+    # la comida queda deliciosa ; está en las buenas
+    (tmp_path / "S01.conllu").write_text(
+        conllu(
+            ("la", "DET", "el", 2, "det"),
+            ("comida", "NOUN", "comida", 3, "nsubj"),
+            ("queda", "VERB", "quedar", 0, "root"),
+            ("deliciosa", "ADJ", "delicioso", 3, "obj"),
+        )
+        + conllu(
+            ("está", "VERB", "estar", 0, "root"),
+            ("en", "ADP", "en", 4, "case"),
+            ("las", "DET", "el", 4, "det"),
+            ("buenas", "ADJ", "bueno", 1, "obl"),
+        ),
+        encoding="utf-8",
+    )
+    first, second = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
+    assert first[3] == ("predicative", "comida", "queda", "quedar")
+    assert second[3].adj_type == "ambiguous"
+
+
 def test_analyze_reads_relations_from_parse(tmp_path):
     tagged, out = tmp_path / "tagged", tmp_path / "parsed"
     tagged.mkdir()

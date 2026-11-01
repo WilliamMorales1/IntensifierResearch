@@ -53,6 +53,14 @@ apocope_dict = {
     "un": "uno",
 }
 
+# Puerto Rican lateralized /r/ verbs (estal = estar) that taggers call ADJ
+lateralized_verbs = {
+    "acostal", "acueldas", "agarral", "buscal", "cambial", "competil", "conseguil", "consideral", "contal", "creel",
+    "dirigil", "entral", "estal", "estudial", "hacel", "ilme", "imaginal", "impactal", "impolta", "levantal",
+    "metelnos", "molestal", "paral", "pelial", "pescal", "ponel", "preparal", "prestal", "pronuncial", "quedal",
+    "recueldo", "regalal", "respetal", "respiral", "saltal", "solicital", "sulgido", "telmina", "visital", "vivil",
+}  # fmt: skip
+
 forms_of_estar = [
     "estar",
     "estal",
@@ -355,13 +363,37 @@ def is_well_formed(word):
 def is_adj(word):
     adj_match = re.search(r"^(.*)_ADJ_", word)
     lex_adj_match = re.search(r"_ADJ_(.+)", word)
-    return bool(adj_match and lex_adj_match and is_well_formed(word) and not word.endswith("mente"))
+    return bool(
+        adj_match
+        and lex_adj_match
+        and is_well_formed(word)
+        and not word.endswith("mente")
+        and adj_match.group(1).lower() not in lateralized_verbs
+    )
 
 
 def log_re_word(word):
     os.makedirs(os.path.dirname(re_words), exist_ok=True)
     with open(re_words, "a", encoding="utf-8") as f:
         f.write(word + "\n")
+
+
+def deaccent(word):
+    return word.translate(str.maketrans("áéíóú", "aeiou"))
+
+
+def repair_lemma(word, lemma):
+    """repair_lemma undoes TagAnt lemmas cut from a feminine or plural form (acogedoro, morén, amigabl)."""
+    feminine = re.fullmatch(r"(.+)as?", word)
+    if feminine and re.search(r"[dts]oro$", lemma):
+        return lemma[:-1]
+    # -ón/-ona is a real pair (gritón); -én/-ín/-ún from -ena/-ina/-una is not
+    if feminine and re.search(r"[éíú]n$", lemma) and deaccent(lemma) == feminine.group(1):
+        return feminine.group(1) + "o"
+    # Spanish words don't end in two consonants, so TagAnt dropped the -e
+    if re.search(r"[^aeiouáéíóú]{2}$", lemma) and word.startswith(lemma + "e"):
+        return lemma + "e"
+    return lemma
 
 
 def get_adj(word):
@@ -371,6 +403,7 @@ def get_adj(word):
     adjective = adj_match.group(1)  # type: ignore
     lex_adjective = adv_match.group(1)  # type: ignore
 
+    lex_adjective = repair_lemma(adjective.lower(), lex_adjective.lower())
     # apocope corrections
     if lex_adjective in apocope_dict:
         lex_adjective = apocope_dict[lex_adjective]
@@ -405,11 +438,27 @@ def get_adv(word):
     return adverb.lower()
 
 
+# adverbs whose base does not end in -o
+isimo_adv_base = {"lej": "lejos", "tard": "tarde", "cerc": "cerca"}
+
+
+def strip_isimo_adv(adverb):
+    """strip_isimo_adv returns the base of an -ísimo adverb (lejísimos -> lejos), or None."""
+    match = re.fullmatch(r"(.+?)(qu|gu)?ísim[oa]s?", adverb)
+    if not match:
+        return None
+    stem = match.group(1) + {"qu": "c", "gu": "g"}.get(match.group(2) or "", "")
+    return isimo_adv_base.get(stem, stem + "o")
+
+
 def is_fragment(words, i):
     """is_fragment reports whether words[i] is a cut-off word the speaker restarts, like "bue" in "muy bue muy bueno"."""
     host = words[i].split("_")[0].lower()
     if len(host) <= 2:
         return host not in ("ya", "sí", "ni")
+    # cut-off bueno, often with the restart outside the segment
+    if host == "bue":
+        return True
     if len(host) > 4:
         return False
     for word in words[i + 1 : i + 5]:
@@ -451,6 +500,45 @@ def add_verb(row_data, relations, words):
     row_data["Inf_Verb"] = relations.inf_verb if visible else "/"
 
 
+# words both taggers call ADJ, NOUN or VERB that are always adverbs
+always_adverbs = {"entoes", "ahorita", "ahoritica"}
+
+
+def is_weather_noun(words, i):
+    """is_weather_noun reports whether words[i] is the noun in mucho frío or hace (bastante) frío."""
+    before = [w.split("_")[0].lower() for w in words[max(0, i - 2) : i]]
+    if before and before[-1] in ("mucho", "tanto", "poco"):
+        return True
+    hacer = ("hace", "hacía", "hacia", "hizo", "hará", "haga", "hiciera", "hacer")
+    return bool(before) and (before[-1] in hacer or len(before) == 2 and before[0] in hacer and is_int(words[i - 1]))
+
+
+def retag(words):
+    """retag fixes host tags both taggers get wrong: entoes/ahorita ADV, poquito ADV or DET, poco DET, mucho frío NOUN."""
+    out = []
+    for i, word in enumerate(words):
+        parts = word.split("_")
+        if len(parts) == 3:
+            text, pos, lemma = parts
+            low = text.lower()
+            if low in always_adverbs and pos != "ADV":
+                pos = "ADV"
+            elif re.fullmatch(r"poquit[oa]s?", low) and pos in ("ADJ", "NOUN"):
+                before = words[i - 1].split("_") if i > 0 else []
+                # muy poquito, como poquito: like muy poco; un poquito de stays NOUN
+                if before and (is_int(words[i - 1]) or before[1] in ("VERB", "AUX")):
+                    pos = "ADV"
+                elif pos == "ADJ":
+                    pos = "DET"
+            elif re.fullmatch(r"poc[oa]s?", low) and pos == "ADJ":
+                pos = "DET"
+            elif low in ("frío", "frio", "calor") and pos == "ADJ" and is_weather_noun(words, i):
+                pos = "NOUN"
+            word = f"{text}_{pos}_{lemma}"
+        out.append(word)
+    return out
+
+
 def process_segment(segment, speaker, parse=None):
     """process_segment extracts host rows; parse, when given, holds a Relations or None per word."""
     rows = []
@@ -462,8 +550,7 @@ def process_segment(segment, speaker, parse=None):
     noun = None
     double = None
 
-    # Split the segment into words
-    words = segment.split()
+    words = retag(segment.split())
 
     # Process each word in the segment
     for i, word in enumerate(words):
@@ -561,6 +648,7 @@ def process_segment(segment, speaker, parse=None):
             # muchísimo is the intensifier mucho itself, not a host
             if adverb.startswith("muchísim"):
                 continue
+            isimo_base = strip_isimo_adv(adverb)
 
             # muy lejos
             if i > 0 and is_int(words[i - 1]) and not is_mas_bien(words, i):
@@ -578,6 +666,8 @@ def process_segment(segment, speaker, parse=None):
             else:
                 intensifier = "/"
                 double = "/"
+            if isimo_base:
+                intensifier, adverb = "-ísimo", isimo_base
 
             # FRASE REAL
             phrase_tagged = " ".join(words)

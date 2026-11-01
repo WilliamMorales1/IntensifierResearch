@@ -332,6 +332,9 @@ def governing_verb(sent, w):
     return None
 
 
+copular_verbs = {"ser", "estar", "parecer", "quedar", "sentir"}
+
+
 def adjective_relation(sent, w):
     # "bonita y grande": the second conjunct shares the first one's relation
     while w.deprel == "conj" and w.head and _head(sent, w).upos == "ADJ":
@@ -345,6 +348,14 @@ def adjective_relation(sent, w):
     if rel == "xcomp" and head is not None:
         # "lo veo bonito" describes the object, "se puso feo" the subject
         return "predicative", _noun(_children(sent, head, "obj") or _children(sent, head, "nsubj"), w)
+    # "es como difícil", "queda delicioso": the parse hangs the adjective off a copular verb instead of using cop
+    if (
+        head is not None
+        and head.lemma in copular_verbs
+        and rel in ("obj", "advcl", "advmod", "ccomp", "parataxis")
+        and not _children(sent, w, "case")
+    ):
+        return "predicative", _noun(_children(sent, head, "nsubj"), w)
     return "ambiguous", "/"
 
 

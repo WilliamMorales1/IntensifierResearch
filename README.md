@@ -100,7 +100,7 @@ Stanza only, `correct_tokens` in `extract_stanza.py` (each rule hand-checked aga
 | *hay mucho venezolano* (noun as ADJ) | NOUN after DET *mucho* or *haber* |
 | participle lemma = verb (*dado* -> *dar*), *chéveres* -> *chéver* | masculine singular form, *chévere* |
 
-Known gaps: *-ísimo* on adverbs (*lejísimos*) counts as unintensified; *mucho* + adjective after a copula (*es mucho frío*) is left alone as possibly dialectal; interviewer backchannels (*mhm*, *qué bueno*) on their own lines can't be told from the participant's. Check the *-ísimo* rows by hand.
+Known gaps: *mucho* + adjective after a copula (*era mucho chusco*) is left alone as possibly dialectal; *solo* and *mismo* keep each tagger's ADJ tags; interviewer backchannels (*mhm*, *qué bueno*) on their own lines can't be told from the participant's. Check the *-ísimo* rows by hand.
 
 ## TagAnt or Stanza
 

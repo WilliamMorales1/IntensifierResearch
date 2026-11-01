@@ -40,6 +40,14 @@ def token(segment):
         ("bonitas_ADJ_bonita", "bonito"),
         ("altos_ADJ_altos", "alto"),
         ("lejos_ADJ_lejos", "lejos"),
+        ("acogedora_ADJ_acogedoro", "acogedor"),
+        ("colaboradoras_ADJ_colaboradoro", "colaborador"),
+        ("morena_ADJ_morén", "moreno"),
+        ("peregrina_ADJ_peregrín", "peregrino"),
+        ("gritona_ADJ_gritón", "gritón"),
+        ("amigables_ADJ_amigabl", "amigable"),
+        ("bastantes_ADJ_bastant", "bastante"),
+        ("sonoro_ADJ_sonoro", "sonoro"),
     ],
 )
 def test_get_adj_normalizes_apocope_gender_and_number(tagged, lex):
@@ -253,6 +261,21 @@ def test_isimo_quantifier_dropped():
 
 
 @pytest.mark.parametrize(
+    ("segment", "adv"),
+    [
+        ("vive_VERB_vivir lejísimos_ADV_lejísimos", "lejos"),
+        ("está_AUX_estar cerquísima_ADV_cerquísima", "cerca"),
+        ("llegó_VERB_llegar tardísimo_ADV_tardísimo", "tarde"),
+        ("habla_VERB_hablar altísimo_ADV_altísimo", "alto"),
+        ("salió_VERB_salir tempranísimo_ADV_tempranísimo", "temprano"),
+    ],
+)
+def test_isimo_adverb_restores_base(segment, adv):
+    (row,) = process_segment(segment, "S01")
+    assert (row["Int"], row["Adv"]) == ("-ísimo", adv)
+
+
+@pytest.mark.parametrize(
     ("content", "clean"),
     [
         ("vida_NOUN_vida J_PROPN_J :_PUNCT_: -pues_ADV_-pues fue_AUX_ser", "vida_NOUN_vida pues_ADV_pues fue_AUX_ser"),
@@ -354,3 +377,49 @@ def test_analyze_drops_hosts_never_intensified(tmp_path):
     df = analyze(str(tmp_path), str(tmp_path / "out.csv"), drop_invariant=True)
     assert df[["Int", "Lex_Adj"]].values.tolist() == [["muy", "lindo"], ["/", "lindo"]]
     assert len(pd.read_csv(tmp_path / "out.csv")) == 2
+
+
+@pytest.mark.parametrize("segment", ["pa_ADP_para estal_ADJ_estal", "no_ADV_no me_PRON_yo recueldo_ADJ_recueldo"])
+def test_lateralized_verb_is_not_adjective(segment):
+    assert process_segment(segment, "S01") == []
+
+
+@pytest.mark.parametrize(
+    ("segment", "host"),
+    [
+        ("entoes_ADJ_entoes fuimos_VERB_ir", "entoes"),
+        ("ahorita_PRON_ahorita no_ADV_no", "ahorita"),
+        ("hago_VERB_hacer muy_ADV_mucho poquito_ADJ_poquito", "poquito"),
+    ],
+)
+def test_retag_always_adverbs(segment, host):
+    (row,) = process_segment(segment, "S01")
+    assert (row["Adv"], row["Adj"]) == (host, "/")
+
+
+@pytest.mark.parametrize(
+    "segment", ["un_DET_uno poquito_ADJ_poquito duro_NOUN_duro", "muy_ADV_mucho pocas_ADJ_poco cosas_NOUN_cosa"]
+)
+def test_retag_quantifiers_are_not_hosts(segment):
+    assert process_segment(segment, "S01") == []
+
+
+def test_bue_without_restart_is_fragment():
+    assert process_segment("sería_AUX_ser muy_ADV_mucho bue_ADV_bue podría_AUX_poder", "S01") == []
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "es_AUX_ser mucho_ADV_mucho frío_ADJ_frío",
+        "hace_VERB_hacer bastante_ADV_bastante frío_ADJ_frío",
+        "hacía_VERB_hacer frío_ADJ_frío",
+    ],
+)
+def test_weather_frio_is_noun(segment):
+    assert [r["Adj"] for r in process_segment(segment, "S01")] == []
+
+
+def test_frio_adjective_kept():
+    (row,) = process_segment("el_DET_el agua_NOUN_agua es_AUX_ser muy_ADV_mucho fría_ADJ_frío", "S01")
+    assert (row["Int"], row["Lex_Adj"]) == ("muy", "frío")
