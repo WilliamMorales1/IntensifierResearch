@@ -43,7 +43,6 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | nouns used as adjectives after *muy* (*muy amigo*, *muy niña*; ~75) | ADJ when longer than 3 letters and not a real noun (*muy falta de*, *muy parte de*) |
 | participle lemma = verb (*dado* -> *dar*) | masc. sg. form |
 | *chéveres* -> *chéver*, *chevere*, *gritono* | *chévere*, *gritón* |
-| dialect *chévere* (*chéere, chevre, chéer*), *conchudo* as VERB/NOUN/PROPN/ADV | ADJ |
 | 1sg *vivo* (= I live) as ADJ (199) | VERB *vivir* unless after DET, AUX, a verb, an intensifier or *lo/tan/más/en*; 143 flipped |
 | adverbial *primero* (*pues primero se prepara*; 151) | ADV unless after DET, ADP, AUX, NOUN, *lo* or a predicative verb, before NOUN/ADJ, or *primero y segundo* |
 | compound nouns *medio ambiente*, *sala comedor*, *hora pico*, *ciclo vía*, *Estados Unidos*, *ave María* | NOUN/PROPN |
@@ -54,8 +53,6 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *medio día*, *media noche* (25), *ocho y media* (4) | NOUN, NUM |
 | misspelled *echar* (*se le hecha*; 6) | VERB after a clitic |
 | *puro/solo* + bare noun (*era puro barro*, *comiendo solo pescado*; 141) | *puro* DET, *solo* ADV; *aire puro*, *una sola casa* kept |
-| Puerto Rican lateralized /r/ (*cielto*, *fuelte*, *impoltante*, *mejol*, *celca*, *estudial*, *polque*, *helmano*; ~80 types) | lemma l -> r; non-adjectives retagged VERB, SCONJ, NOUN, ADV |
-| dropped intervocalic d (*complicao*, *pesao*, *consentio*, *tímia*) | lemma -ado, -ido |
 | adverbial *mismo* (*ahí/ahora/aquí/así mismo*; 231) | ADV; *uno mismo*, *lo mismo* kept |
 | lowercase *santo/santa* in names (*semana santa*, *espíritu santo*; 59) | PROPN; *todo el santo día* kept |
 | mid-sentence capitalized ADJ (*Villa Nueva*), *nueva york* (36) | PROPN |
@@ -80,10 +77,23 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *muchísimo/a/os*, *tantísimas* | row dropped |
 | *-ísimo* bases (*grandísimo*, *facilísimo*, *cheverísimo*) | base form found in the corpus: *grande*, *fácil*, *chévere*; adjective surface rebuilt (*grandas* -> *grandes*) |
 | *-ísimo* on adverbs (*lejísimos*, *tardísimo*, *cerquísima*) | host *lejos*, *tarde*, *cerca*, Int `-ísimo`; *lejísimos* ADJ retagged ADV |
-| *entoes*, *ahorita* as ADJ/NOUN/VERB/PRON | ADV |
+| *ahorita* as ADJ/NOUN/VERB/PRON | ADV |
 | *poquito* | ADV after an intensifier or verb (*muy poquito*); DET before a noun and for *poquita/os/as*; NOUN (*un poquito*) kept |
-| lateralized adverb hosts (*celca*, *talde*) | `Adv` uses the r lemma |
+| lateralized adverb hosts (*celca*, *talde*) | `Adv` uses the r lemma `pr` gave it |
 | hosts never intensified anywhere in the corpus (*ya*, *entonces*, *más*) | all rows dropped with `--drop-invariant`; off by default |
+
+## Dialect corrections (`pipeline/dialects/`)
+
+Off by default; `--dialect pr --dialect co` turns them on, and the corpus needs both. Each runs inside `correct_tokens` before the general rules (a dialect fix wins), and its lemma fixes run after them. Counts are tokens changed on the corpus.
+
+| Dialect | Error | Fix |
+| --- | --- | --- |
+| `pr` (Puerto Rico, LAPR) | lateralized /r/ (*cielto*, *fuelte*, *impoltante*, *mejol*, *celca*, *estudial*, *polque*, *helmano*; ~80 types) | lemma l -> r; non-adjectives retagged VERB, SCONJ, NOUN, ADV |
+| `co` (Colombia) | dialect *chévere* (*chéere, chevre, chéer*), *conchudo* as VERB/NOUN/PROPN/ADV | ADJ |
+| `co` | dropped intervocalic d (*complicao*, *pesao*, *consentio*, *tímia*; mostly TUNJ) | lemma -ado, -ido |
+| `co` | *entoes* (= *entonces*) as NOUN/VERB/ADJ/PART (291, nearly all TUNJ) | ADV |
+
+Without them, 415 corpus tokens keep Stanza's tag or lemma and the table has 118,797 rows (16.99% of adjective rows intensified) instead of 119,002 (17.02%).
 
 ## Adj_type, Noun and Verb (`sentence_relations` in `pipeline/extract_stanza.py`)
 

@@ -7,6 +7,7 @@ from collections import namedtuple
 from datetime import date
 from multiprocessing import get_context
 
+import dialects as dialect_rules
 from extract import (
     analyze,
     intensifier_list,
@@ -28,52 +29,6 @@ parse_processors = {"depparse": "combined_bertin-roberta"}
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
-lemma_fixes |= {"chéere": "chévere", "chevre": "chévere", "chéer": "chévere", "primelo": "primero"}
-# dropped intervocalic d in -ido ("consentio", "tímia")
-lemma_fixes |= {"consentio": "consentido", "tímio": "tímido", "conocío": "conocido"}
-# Puerto Rican /r/ lateralized to /l/ in adjective lemmas
-lemma_fixes |= {
-    w: re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w)
-    for w in (
-        "cielto", "impoltante", "superiol", "mejol", "fuelte", "milital", "avelgonzado", "muelto", "menol",
-        "univelsitario", "olganizado", "celcano", "populal", "unifolme", "nelvioso", "coltado", "similal", "colto",
-        "pueltorriqueño", "familial", "regulal", "celulal", "pelfecto", "abielto", "insopoltable", "peol",
-        "pelfeccionista", "lalgo", "pelsonal", "mayol", "velde", "diveltido", "solal", "particulal", "cualto",
-    )
-}  # fmt: skip
-# lateralized non-adjectives the tagger calls ADJ
-lateral_words = {
-    "celca": ("ADV", "cerca"),
-    "alrededol": ("ADV", "alrededor"),
-    "talde": ("ADV", "tarde"),
-    "vel": ("VERB", "ver"),
-    "calne": ("NOUN", "carne"),
-    "palte": ("NOUN", "parte"),
-    "hogal": ("NOUN", "hogar"),
-    "polque": ("SCONJ", "porque"),
-    "pol": ("ADP", "por"),
-    "sel": ("AUX", "ser"),
-    "sabol": ("NOUN", "sabor"),
-    "helmano": ("NOUN", "hermano"),
-    "helmanos": ("NOUN", "hermano"),
-    "puelto": ("PROPN", "puerto"),
-    "profesol": ("NOUN", "profesor"),
-    "apaltamento": ("NOUN", "apartamento"),
-    "telmino": ("VERB", "terminar"),
-    "duelmo": ("VERB", "dormir"),
-    "sentalme": ("VERB", "sentar"),
-    "impolta": ("VERB", "importar"),
-}
-lateral_words |= {
-    w: ("VERB", re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w))
-    for w in (
-        "cocinal", "limpial", "llamal", "celebral", "gastal", "destacal", "explotal", "manejal", "hablal", "gualdal",
-        "preocupal", "lleval", "adoptal", "pical", "bañal", "laval", "llenal", "regresal", "folmal", "logral",
-        "disfrutal", "comental", "tratal", "llegal", "jugal", "dural", "salil", "comel", "sobresalil", "asistil",
-        "lucil", "recogel", "correl", "leel", "bebel", "tenel", "estudial", "vivil", "consideral", "competil",
-        "pronuncial", "imaginal", "impactal", "paral",
-    )
-}  # fmt: skip
 
 _nlp = None
 
@@ -147,14 +102,6 @@ fillers = {
 discourse_adjs = ("bueno", "claro", "exacto", "listo", "cierto")
 # hues that "claro" can modify ("moreno claro") even when the tagger calls them NOUN
 colors = ["moreno", "morena", "azul", "verde", "rojo", "rosado", "café", "gris", "amarillo", "marrón", "morado"]
-# Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN, VERB or ADV
-dialect_adjs = {
-    "chéere": "chévere",
-    "chéer": "chévere",
-    "chevre": "chévere",
-    "chevere": "chévere",
-    "conchudo": "conchudo",
-}
 # -ísimo forms that are adverbs (lejísimos, muchísimo); the tagger calls jugosísimo, jartísimo ADV too
 isimo_adverbs = re.compile(r"(much|ch|tant|h?art|lej|tard|cerqu|rapid|tempran|pront|poquit)ísim[oa]s?")
 # real -ono adjectives; other -ono lemmas of -ona words are -ón ones the lemmatizer misread (mamona, cansonas)
@@ -363,13 +310,16 @@ def _verb_vivo(tokens, i):
     return True
 
 
-def correct_tokens(tokens):
-    """correct_tokens fixes Stanza's closed list of systematic errors, each found and checked by hand."""
+def correct_tokens(tokens, dialects=()):
+    """correct_tokens fixes Stanza's closed list of systematic errors, each found and checked by hand; dialects adds the rules of those dialect modules."""
     out = []
     for i, (text, upos, lemma) in enumerate(tokens):
         low = text.lower()
         after_int = i > 0 and tokens[i - 1][0].lower() in intensifier_list
-        if after_int and low == "poco" and upos == "PRON":
+        fixed = next((f for d in dialects if (f := d.correct(tokens, i, upos, lemma))), None)
+        if fixed:
+            upos, lemma = fixed
+        elif after_int and low == "poco" and upos == "PRON":
             upos = "ADV"
         # "mucho solo" is quantifier + "only", not intensified "lonely"
         elif after_int and low == "solo" and upos == "ADV" and tokens[i - 1][0].lower() != "mucho":
@@ -401,8 +351,6 @@ def correct_tokens(tokens):
         # "yo saludo a mi novia"
         elif upos == "ADJ" and low == "saludo":
             upos, lemma = "VERB", "saludar"
-        elif low in lateral_words and (low == "celca" or upos in ("ADJ", "ADV")):
-            upos, lemma = lateral_words[low]
         elif upos == "ADJ" and low == "mismo" and i > 0 and tokens[i - 1][0].lower() in mismo_advs:
             upos = "ADV"
         elif upos == "ADJ" and i > 0 and (tokens[i - 1][0].lower(), low) in compound_nouns:
@@ -448,8 +396,6 @@ def correct_tokens(tokens):
             low == "total" and _adverbial_total(tokens, i) or low == "seguro" and _adverbial_seguro(tokens, i)
         ):
             upos = "ADV"
-        elif upos in ("NOUN", "PROPN", "VERB", "ADV") and low in dialect_adjs:
-            upos, lemma = "ADJ", dialect_adjs[low]
         # muy only modifies a noun used as an adjective: "muy amigo", "muy niña", "muy trabajadores"
         elif upos == "NOUN" and i > 0 and tokens[i - 1][0].lower() == "muy" and len(low) > 3 and low not in muy_nouns:
             upos = "ADJ"
@@ -466,29 +412,29 @@ def correct_tokens(tokens):
             and lemma not in ono_adjs
         ):
             lemma = re.sub(r"ono?$", "ón", lemma)
-        elif upos == "ADJ" and re.search(r".{3}ao$", lemma):
-            # dropped intervocalic d: "complicao", "pesao", "calmao"
-            lemma = lemma[:-2] + "ado"
-        out.append((text, upos, lemma_fixes.get(lemma, lemma)))
+        lemma = lemma_fixes.get(lemma, lemma)
+        for d in dialects:
+            lemma = d.fix_lemma(upos, lemma)
+        out.append((text, upos, lemma))
     return out
 
 
-def correct_line(line):
+def correct_line(line, dialects=()):
     tokens = []
     for t in line.split():
         text, upos, lemma = t.split("_", 2)
         tokens.append((text, upos, lemma))
-    return " ".join("_".join(t) for t in correct_tokens(tokens))
+    return " ".join("_".join(t) for t in correct_tokens(tokens, dialects))
 
 
-def correct_folder(input_folder, output_folder):
+def correct_folder(input_folder, output_folder, dialects=()):
     # raw tagger output stays untouched so rules can be rechecked against it
     os.makedirs(output_folder, exist_ok=True)
     for name in sorted(os.listdir(input_folder)):
         if not name.endswith(".txt"):
             continue
         with open(os.path.join(input_folder, name), encoding="utf-8") as f:
-            lines = [correct_line(line) for line in f.read().splitlines()]
+            lines = [correct_line(line, dialects) for line in f.read().splitlines()]
         with open(os.path.join(output_folder, name), "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
 
@@ -760,11 +706,18 @@ if __name__ == "__main__":
     )
     parser.add_argument("--xlsx", action="store_true", help="also write the table as xlsx")
     parser.add_argument("--csv", action="store_true", help="also write the table as csv")
+    parser.add_argument(
+        "--dialect",
+        action="append",
+        default=[],
+        choices=sorted(dialect_rules.available),
+        help="also apply this dialect's tag corrections (repeatable; the corpus needs pr and co)",
+    )
     parser.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 
     tag_folder(args.input, args.tagged, args.workers)
-    correct_folder(args.tagged, args.corrected)
+    correct_folder(args.tagged, args.corrected, dialect_rules.load(args.dialect))
     parse_folder(args.corrected, args.parsed, args.workers)
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)

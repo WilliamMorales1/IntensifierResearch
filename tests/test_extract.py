@@ -364,7 +364,6 @@ def test_analyze_drops_hosts_never_intensified(tmp_path):
 @pytest.mark.parametrize(
     ("segment", "host"),
     [
-        ("entoes_ADJ_entoes fuimos_VERB_ir", "entoes"),
         ("ahorita_PRON_ahorita no_ADV_no", "ahorita"),
         ("queda_VERB_quedar súper_ADV_súper cerquita_ADJ_cerquita", "cerquita"),
         ("hago_VERB_hacer muy_ADV_mucho poquito_ADJ_poquito", "poquito"),

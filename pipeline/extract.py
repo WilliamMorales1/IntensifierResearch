@@ -8,6 +8,8 @@ from collections import Counter
 
 import pandas as pd
 
+from dialects.pr import delateralize
+
 speaker_data = "data/speaker_data_ALL_2026-3-12.xlsx"
 re_words = "output/re-words.txt"
 
@@ -190,8 +192,8 @@ def get_adv(word):
     adverb, lemma = adv_match.group(1), adv_match.group(2)  # type: ignore
     if adverb.startswith("re"):
         log_re_word(adverb)
-    # Stanza's corrected lemma of a Puerto Rican lateralized adverb (celca -> cerca, talde -> tarde)
-    if lemma.lower() != adverb.lower() and re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", adverb.lower()) == lemma.lower():
+    # lemma set by the pr dialect rules (celca -> cerca, talde -> tarde)
+    if lemma.lower() != adverb.lower() and delateralize(adverb.lower()) == lemma.lower():
         return lemma.lower()
     return adverb.lower()
 
@@ -255,13 +257,13 @@ def add_verb(row_data, relations, words):
 
 
 # words the tagger calls ADJ, NOUN, VERB or PRON that are always adverbs ("queda súper cerquita")
-always_adverbs = {"entoes", "ahorita", "ahoritica", "cerquita"}
+always_adverbs = {"ahorita", "ahoritica", "cerquita"}
 # the tagger calls lejísimos ADJ
 isimo_adverb = re.compile(r"(lej|tard|cerqu)ísim[oa]s?")
 
 
 def retag(words):
-    """retag fixes host tags the tagger gets wrong: entoes/ahorita/lejísimos ADV, poquito ADV or DET."""
+    """retag fixes host tags the tagger gets wrong: ahorita/lejísimos ADV, poquito ADV or DET."""
     out = []
     for i, word in enumerate(words):
         parts = word.split("_")

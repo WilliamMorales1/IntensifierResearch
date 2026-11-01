@@ -10,7 +10,7 @@ Tagging, lemmas and the dependency parse come from [Stanza](https://stanfordnlp.
 conda env create -f environment.yml
 conda activate intensifier-research
 python pipeline/clean_transcripts.py   # data/original/*.docx -> data/text/*.txt
-python pipeline/extract_stanza.py      # data/text -> output/intensifier_data_stanza_<date>.sqlite
+python pipeline/extract_stanza.py --dialect pr --dialect co   # data/text -> output/intensifier_data_stanza_<date>.sqlite
 ```
 
 Needs Python 3.10+ and [LibreOffice](https://www.libreoffice.org/) for old `.doc` transcripts. Tagging and parsing use Stanza's transformer models (BERTIN RoBERTa, about 1 GB of downloads) and need a GPU; see [Running on Colab](#running-on-colab). Extraction from finished tags and parses runs on any laptop in about 5 minutes.
@@ -84,6 +84,8 @@ python pipeline/extract_stanza.py --drop-invariant       # only hosts intensifie
 python pipeline/extract_stanza.py --xlsx --csv           # also write xlsx and csv next to the sqlite
 ```
 
+Dialect-specific corrections live in `pipeline/dialects/` (one file per dialect) and are off unless named with `--dialect`: `pr` for Puerto Rican lateralized /r/ (*cielto*, *celca*), `co` for Colombian *chévere* spellings, *entoes* and dropped d (*complicao*). The corpus needs both; see [`docs/rules.md`](docs/rules.md#dialect-corrections-pipelinedialects). The Colab job applies both before parsing.
+
 After changing `correct_tokens`, delete `data/stanza_parsed/` so the parse reads the new tags. On a CPU, set `OMP_NUM_THREADS=1` or each worker spins 8 threads.
 
 ### Running on Colab
@@ -94,7 +96,7 @@ The transformer tagger and parser take days on a laptop CPU and about 1 h 40 min
 scripts/colab/start.sh    # packs pipeline/, data/text and finished tags/parses, starts the job on a T4
 tail -f data/colab/sync.log
 cp -r data/colab/data/stanza_* data/    # once sync.log says DONE
-python pipeline/extract_stanza.py       # tags and parses nothing new, just extracts
+python pipeline/extract_stanza.py --dialect pr --dialect co    # tags and parses nothing new, just extracts
 ```
 
 Only files missing from `data/stanza_tagged` or `data/stanza_parsed` are processed, so to redo some transcripts delete their files from both. `sync.sh` (started by `start.sh`) pulls finished files back every 10 minutes and, since free VMs get preempted, starts a new VM from them after three failed pulls. It stops the VM when the job is done.
