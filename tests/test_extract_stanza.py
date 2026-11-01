@@ -143,6 +143,23 @@ def test_join_paragraphs_ends_turns_with_period():
         ("no_ADV_no vivo_ADJ_vivo ,_PUNCT_,", "no_ADV_no vivo_VERB_vivir ,_PUNCT_,"),
         ("llegó_VERB_llegar vivo_ADJ_vivo ,_PUNCT_,", "llegó_VERB_llegar vivo_ADJ_vivo ,_PUNCT_,"),
         ("muy_ADV_mucho celca_ADJ_celca", "muy_ADV_mucho celca_ADV_cerca"),
+        ("si_SCONJ_si claro_ADJ_claro ,_PUNCT_,", "si_SCONJ_si claro_INTJ_claro ,_PUNCT_,"),
+        ("tengo_VERB_tener claro_ADJ_claro que_SCONJ_que", "tengo_VERB_tener claro_ADJ_claro que_SCONJ_que"),
+        ("pues_SCONJ_pues primero_ADJ_primero se_PRON_él", "pues_SCONJ_pues primero_ADV_primero se_PRON_él"),
+        ("lo_PRON_él primero_ADJ_primero que_PRON_que", "lo_PRON_él primero_ADJ_primero que_PRON_que"),
+        ("el_DET_el primero_ADJ_primero ,_PUNCT_,", "el_DET_el primero_ADJ_primero ,_PUNCT_,"),
+        ("primero_ADJ_primero año_NOUN_año", "primero_ADJ_primero año_NOUN_año"),
+        (
+            "tiene_VERB_tener primero_ADJ_primero y_CCONJ_y segundo_ADJ_segundo",
+            "tiene_VERB_tener primero_ADJ_primero y_CCONJ_y segundo_ADJ_segundo",
+        ),
+        ("medio_ADJ_medio ambiente_ADJ_ambiente", "medio_ADJ_medio ambiente_NOUN_ambiente"),
+        ("estados_PROPN_estados unidos_ADJ_unido", "estados_PROPN_estados unidos_PROPN_unido"),
+        ("somos_AUX_ser muy_ADV_mucho unidos_ADJ_unido", "somos_AUX_ser muy_ADV_mucho unidos_ADJ_unido"),
+        ("en_ADP_en san_ADJ_san Javier_PROPN_Javier", "en_ADP_en san_PROPN_san Javier_PROPN_Javier"),
+        ("mi_DET_mi cuarto_ADJ_cuarto ,_PUNCT_,", "mi_DET_mi cuarto_NOUN_cuarto ,_PUNCT_,"),
+        ("cuarto_ADJ_cuarto piso_NOUN_piso", "cuarto_ADJ_cuarto piso_NOUN_piso"),
+        ("barrio_NOUN_barrio estrato_ADJ_estrato", "barrio_NOUN_barrio estrato_NOUN_estrato"),
     ],
 )
 def test_correct_line(line, fixed):

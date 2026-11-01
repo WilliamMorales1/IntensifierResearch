@@ -455,7 +455,14 @@ def test_retag_always_adverbs(segment, host):
 
 
 @pytest.mark.parametrize(
-    "segment", ["un_DET_uno poquito_ADJ_poquito duro_NOUN_duro", "muy_ADV_mucho pocas_ADJ_poco cosas_NOUN_cosa"]
+    "segment",
+    [
+        "un_DET_uno poquito_ADJ_poquito duro_NOUN_duro",
+        "muy_ADV_mucho pocas_ADJ_poco cosas_NOUN_cosa",
+        "muy_ADV_mucho poquitas_ADJ_poquito veces_NOUN_vez",
+        "muy_ADV_mucho poquito_ADJ_poquito tiempo_NOUN_tiempo",
+        "son_AUX_ser muy_ADV_mucho poquitos_ADJ_poquito ,_PUNCT_,",
+    ],
 )
 def test_retag_quantifiers_are_not_hosts(segment):
     assert process_segment(segment, "S01") == []

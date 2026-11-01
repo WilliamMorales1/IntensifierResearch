@@ -539,8 +539,11 @@ def retag(words):
                 pos = "ADV"
             elif re.fullmatch(r"poquit[oa]s?", low) and pos in ("ADJ", "NOUN"):
                 before = words[i - 1].split("_") if i > 0 else []
-                # muy poquito, como poquito: like muy poco; un poquito de stays NOUN
-                if before and (is_int(words[i - 1]) or before[1] in ("VERB", "AUX")):
+                after = words[i + 1].split("_") if i + 1 < len(words) else []
+                # muy poquito, como poquito: like muy poco; un poquito de stays NOUN;
+                # muy poquitas veces, muy poquito tiempo are quantifiers like muy pocas veces
+                quantifier = low != "poquito" or (len(after) == 3 and after[1] in ("NOUN", "PROPN"))
+                if before and (is_int(words[i - 1]) or before[1] in ("VERB", "AUX")) and not quantifier:
                     pos = "ADV"
                 elif pos == "ADJ":
                     pos = "DET"

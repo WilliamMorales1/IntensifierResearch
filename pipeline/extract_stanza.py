@@ -103,6 +103,16 @@ discourse_adjs = ("bueno", "claro", "exacto")
 dialect_adjs = {"chéere": "chévere", "chevre": "chévere", "chevere": "chévere", "conchudo": "conchudo"}
 # nouns after muy that are not used as adjectives ("muy falta de", "muy toma trago"), or are cut-off words
 muy_nouns = {"gente", "cosas", "falta", "toma", "pulpa", "maleza", "masa", "carga", "calma", "dema", "ente"}
+# second halves of compound nouns the tagger reads as noun + adjective
+compound_nouns = {
+    ("medio", "ambiente"): "NOUN",
+    ("sala", "comedor"): "NOUN",
+    ("salón", "comedor"): "NOUN",
+    ("hora", "pico"): "NOUN",
+    ("horas", "pico"): "NOUN",
+    ("estados", "unidos"): "PROPN",
+    ("ave", "maría"): "PROPN",
+}
 
 
 def _around(tokens, i):
@@ -149,7 +159,9 @@ def _discourse_slot(tokens, i):
     prev, nxt, _ = _around(tokens, i)
     return (nxt[1] not in ("NOUN", "PROPN") or nxt[0].lower() in fillers) and (
         prev[1] in ("PUNCT", "CCONJ", "INTJ")
-        or prev[0].lower() in ("sí", "pues", "porque", "no", "ay", "y", "o", "pero", *fillers, *discourse_adjs)
+        # "si claro": transcripts often drop the accent on sí
+        or prev[0].lower()
+        in ("sí", "si", "entonces", "pues", "porque", "no", "ay", "y", "o", "pero", *fillers, *discourse_adjs)
     )
 
 
@@ -166,6 +178,17 @@ def _quantified_noun(tokens, i):
     if i == 0 or tokens[i - 1][0].lower() != "mucho" or tokens[i][0].lower() in comparatives:
         return False
     return tokens[i - 1][1] == "DET" or (i > 1 and tokens[i - 2][2] == "haber")
+
+
+def _adverbial_primero(tokens, i):
+    # "pues primero se enferma", "primero, ..." (first) vs "el primero", "lo primero que", "en primero" (grade)
+    prev, nxt, nxt2 = _around(tokens, i)
+    if prev[1] in ("DET", "ADP", "AUX", "NOUN", "PROPN") or prev[2] in predicative_lemmas or prev[0].lower() == "lo":
+        return False
+    # "primero y segundo de bachillerato"
+    if nxt[0].lower() in ("y", "o") and nxt2[0].lower().startswith("segund"):
+        return False
+    return nxt[1] not in ("NOUN", "PROPN", "ADJ")
 
 
 def _verb_vivo(tokens, i):
@@ -194,8 +217,17 @@ def correct_tokens(tokens):
         # "mucho solo" is quantifier + "only", not intensified "lonely"
         elif after_int and low == "solo" and upos == "ADV" and tokens[i - 1][0].lower() != "mucho":
             upos, lemma = "ADJ", "solo"
-        elif upos == "ADJ" and text[0].isupper() and low in ("san", "santa", "santo", "santos", "santas"):
+        elif upos == "ADJ" and (low == "san" or text[0].isupper() and low in ("santa", "santo", "santos", "santas")):
             upos = "PROPN"
+        elif upos == "ADJ" and i > 0 and (tokens[i - 1][0].lower(), low) in compound_nouns:
+            upos = compound_nouns[(tokens[i - 1][0].lower(), low)]
+        # "mi cuarto", "menos cuarto" (room, quarter hour) vs "cuarto piso"
+        elif upos == "ADJ" and (
+            low == "estrato" or low == "cuarto" and _around(tokens, i)[1][1] not in ("NOUN", "PROPN")
+        ):
+            upos = "NOUN"
+        elif upos == "ADJ" and low == "primero" and _adverbial_primero(tokens, i):
+            upos = "ADV"
         elif upos == "ADJ" and (
             (low in discourse_adjs and not after_int and _discourse_slot(tokens, i))
             or (low in (*discourse_adjs, "cierto") and _tag_question(tokens, i))
