@@ -350,6 +350,7 @@ def test_analyze_drops_hosts_never_intensified(tmp_path):
         "es_AUX_ser alto_ADJ_alto ._PUNCT_.\n",
         encoding="utf-8",
     )
-    df = analyze(str(tmp_path), str(tmp_path / "out.csv"))
+    assert len(analyze(str(tmp_path), str(tmp_path / "all.csv"))) == 3
+    df = analyze(str(tmp_path), str(tmp_path / "out.csv"), drop_invariant=True)
     assert df[["Int", "Lex_Adj"]].values.tolist() == [["muy", "lindo"], ["/", "lindo"]]
     assert len(pd.read_csv(tmp_path / "out.csv")) == 2

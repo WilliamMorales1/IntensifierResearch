@@ -611,7 +611,7 @@ def drop_invariant_hosts(df):
     return df[varies].reset_index(drop=True)
 
 
-def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_invariant=True):
+def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_invariant=False):
     """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
     # no mas, tan
     # Create a list to store data frames
@@ -972,12 +972,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="data/tagged", help="folder of TagAnt word_POS_lemma .txt files")
     parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
+    parser.add_argument(
+        "--drop-invariant", action="store_true", help="drop every row of a host that is never intensified"
+    )
     args = parser.parse_args()
 
     os.makedirs("output", exist_ok=True)
     output = "output/intensifier_data_" + date.today().isoformat() + ".csv"
     remove_SPACE(args.input)  # writes without space back to files
-    df = analyze(args.input, output)
+    df = analyze(args.input, output, drop_invariant=args.drop_invariant)
     df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
     df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
     write_outputs(df, output, args.speakers)

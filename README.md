@@ -2,7 +2,7 @@
 
 ![Tests](https://github.com/WilliamMorales1/IntensifierResearch/actions/workflows/tests.yml/badge.svg)
 
-Extracts intensifier + adjective/adverb tokens (*muy bueno*, *riquísimo*, *archiconocido*, *muy muy lejos*) from POS-tagged Spanish sociolinguistic interviews, classifies each adjective as predicative or attributive, and merges in speaker metadata. One row per adjective or adverb token, intensified or not, for every host that is intensified at least once in the corpus, so the output is a variable envelope ready for variationist analysis. Results from an earlier version are published in [*Proceedings of the LSA* 11(1)](https://doi.org/10.3765/plsa.v11i1.6091).
+Extracts intensifier + adjective/adverb tokens (*muy bueno*, *riquísimo*, *archiconocido*, *muy muy lejos*) from POS-tagged Spanish sociolinguistic interviews, classifies each adjective as predicative or attributive, and merges in speaker metadata. One row per adjective or adverb token, intensified or not (`--drop-invariant` keeps only hosts intensified at least once in the corpus), so the output is a variable envelope ready for variationist analysis. Results from an earlier version are published in [*Proceedings of the LSA* 11(1)](https://doi.org/10.3765/plsa.v11i1.6091).
 
 Two taggers produce the same columns: [TagAnt](https://www.laurenceanthony.net/software/tagant/) (GUI, word-order rules) and [Stanza](https://stanfordnlp.github.io/stanza/) (scripted, dependency parse). Stanza is the better choice for new work; see [TagAnt or Stanza](#tagant-or-stanza).
 
@@ -32,11 +32,11 @@ Needs [Miniforge](https://github.com/conda-forge/miniforge) (conda), plus [Libre
 | Tag (TagAnt) | TagAnt GUI | Spanish model, Display Information "word+pos_tag+lemma", input `data/text`, output `data/tagged`. |
 | Extract | `extract_tagant.py` | Shared by both taggers. Splits at sentence punctuation, finds each host and the intensifier right before it, normalizes lemmas (apocope, gender, number, *-ísimo*, *archi-*), applies the extraction rules, and writes csv, xlsx and SQLite. |
 | Compare | `compare_taggers.py` | Aligns TagAnt and Stanza tokens and writes every disagreement to `output/tagger_disagreements.tsv`. |
-| Untag | `untag.py` | Turns `data/tagged` back into raw text, for a TagAnt-only checkout. |
 
 ```fish
 python pipeline/extract_tagant.py                        # TagAnt: data/tagged -> output/intensifier_data_<date>.*
 python pipeline/extract_stanza.py --workers 2            # fewer workers, ~1.8 GB RAM each
+python pipeline/extract_stanza.py --drop-invariant       # only hosts intensified at least once
 python pipeline/compare_taggers.py --stanza data/stanza_corrected
 ```
 
@@ -83,7 +83,7 @@ Both taggers, in `extract_tagant.py`:
 | disfluency fragments (*muy bue muy bueno*, *muy d muy rápido*) | row dropped |
 | feminine lemmas in *-dora/-tora/-sora* | *acogedora* -> *acogedor*, not *acogedoro* |
 | *muchísimo/a/os* | row dropped |
-| hosts never intensified anywhere in the corpus (*ya*, *entonces*, *mismo*, *último*), grouped by `Lex_Adj` or by the adverb | all their rows dropped; `analyze(..., drop_invariant=False)` keeps them |
+| hosts never intensified anywhere in the corpus (*ya*, *entonces*, *mismo*, *último*), grouped by `Lex_Adj` or by the adverb with `--drop-invariant` (`analyze(..., drop_invariant=True)`), all their rows dropped; off by default |
 
 Stanza only, `correct_tokens` in `extract_stanza.py` (each rule hand-checked against TagAnt on samples):
 
@@ -108,20 +108,22 @@ Hand judgment of every token where the taggers disagree on the host after an int
 
 - Stanza's are a closed list (*poco*, *solo*, *claro*, *San*, participle lemmas), fixed by `correct_tokens` above.
 - TagAnt's are open-ended: dialectal and participial adjectives tagged NOUN or VERB (*maluco*, *berraco*, *chévere*, *amañado*, *complicao*), garbage lemmas (*deliciosa* -> *delició*), and Puerto Rican lateralized /r/ verbs tagged ADJ (*estal*, *hacel*, *impolta*), which biases that corpus's rate down.
-- The dependency parse leaves 19.3% of adjective rows ambiguous, against 43.6% for word order.
+- The dependency parse leaves 19.9% of adjective rows ambiguous, against 43.6% for word order.
 
 Snapshot, `2026-10-31`:
 
 | | TagAnt | Stanza |
 | --- | --- | --- |
-| rows | 50,022 | 48,376 |
+| rows | 120,524 | 120,438 |
 | intensified rows | 9,169 | 9,363 |
-| adjective rows | 42,492 | 40,354 |
-| adjective rows intensified | 20.44% | 21.98% |
-| hosts (lemmas and adverbs) | 1,337 | 1,382 |
-| `Adj_type` ambiguous | 43.6% | 19.3% |
+| adjective rows | 58,768 | 54,973 |
+| adjective rows intensified | 14.78% | 16.13% |
+| `Adj_type` ambiguous | 43.6% | 19.9% |
+| rows, `--drop-invariant` | 50,022 | 48,376 |
+| adjective rows intensified, `--drop-invariant` | 20.44% | 21.98% |
+| hosts, `--drop-invariant` | 1,337 | 1,382 |
 
-Before dropping never-intensified hosts, Stanza's rate was about 1.35 pp higher in every gender, education and city group, because TagAnt's false bare adjectives stayed in its denominator; group gaps and order are unchanged. `Adj_type` splits are not comparable between the pipelines; intensification rates are.
+Stanza's rate is about 1.35 pp higher in every gender, education and city group, because TagAnt's false bare adjectives stay in its denominator; group gaps and order are unchanged. `Adj_type` splits are not comparable between the pipelines; intensification rates are.
 
 ## Tests
 
@@ -141,7 +143,7 @@ October 2026. Spreadsheets made before this, including the data behind the *Proc
 - Noun detection checked for intensifiers by substring, so *re* inside *padre* made *padre rico* ambiguous instead of attributive.
 - Speaker labels and interviewer, relative and third-voice turns were counted as participant speech; they are now removed.
 - Added the extraction rules and the Stanza pipeline above.
-- Hosts that are never intensified are dropped, since they show no variation. This removes most bare-adverb rows (*ya*, *más*, *entonces*).
+- `--drop-invariant` drops hosts that are never intensified, since they show no variation. This removes most bare-adverb rows (*ya*, *más*, *entonces*).
 
 ## License
 

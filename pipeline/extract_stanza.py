@@ -400,7 +400,7 @@ def tag_folder(input_folder, output_folder, workers):
         if name.endswith(".part"):
             os.remove(os.path.join(output_folder, name))
 
-    # already tagged files are reused so an interrupted run picks up where it stopped
+    # files tagged by an earlier run are reused so an interrupted run picks up where it stopped
     jobs = [
         (os.path.join(input_folder, name), os.path.join(output_folder, name))
         for name in sorted(os.listdir(input_folder))
@@ -420,6 +420,9 @@ if __name__ == "__main__":
     parser.add_argument("--corrected", default="data/stanza_corrected", help="tags after correct_tokens")
     parser.add_argument("--parsed", default="data/stanza_parsed", help="dependency parse of the corrected tags")
     parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
+    parser.add_argument(
+        "--drop-invariant", action="store_true", help="drop every row of a host that is never intensified"
+    )
     parser.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 
@@ -431,7 +434,9 @@ if __name__ == "__main__":
     output = "output/intensifier_data_stanza_" + date.today().isoformat() + ".csv"
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
     # stanza tags come from clean_transcripts' cleaned text, and their lines are sentences, not transcript turns
-    df = analyze(args.corrected, output, parse_relations(args.parsed), clean_turns=False)
+    df = analyze(
+        args.corrected, output, parse_relations(args.parsed), clean_turns=False, drop_invariant=args.drop_invariant
+    )
     write_outputs(df, output, args.speakers)
 
     print("Make sure to manually check the -ísimo cases!")

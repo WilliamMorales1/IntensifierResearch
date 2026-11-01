@@ -14,26 +14,6 @@ from extract_stanza import (
     tag_word,
 )
 from extract_tagant import analyze
-from untag import untag, untag_line
-
-
-def test_untag_line_restores_raw_text():
-    line = "¿_PUNCT_¿ cómo_PRON_cómo se_PRON_él llama_VERB_llamar ?_PUNCT_? ,_PUNCT_, es_AUX_ser muy_ADV_mucho pequeña_ADJ_pequeño ._PUNCT_."
-    assert untag_line(line) == "¿cómo se llama?, es muy pequeña."
-
-
-def test_untag_line_drops_space_tokens():
-    assert untag_line("para_ADP_para _SPACE_ tener_VERB_tener") == "para tener"
-
-
-def test_untag_keeps_transcript_underscores(tmp_path):
-    src, out = tmp_path / "tagged", tmp_path / "text"
-    src.mkdir()
-    (src / "S01.txt").write_text("ruido_fondo_NOUN_ruido_fondo bueno_ADJ_bueno\n\n", encoding="utf-8")
-
-    untag(str(src), str(out))
-
-    assert (out / "S01.txt").read_text(encoding="utf-8") == "ruido_fondo bueno\n"
 
 
 def word(text, upos, lemma):
@@ -244,7 +224,7 @@ def test_analyze_reads_relations_from_parse(tmp_path):
     # attributive casas viejas is not adjacent in word order to the verb "vivo"
     (tagged / "S01.txt").write_text(" ".join("_".join(w) for w in words) + "\n", encoding="utf-8")
 
-    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)), drop_invariant=False)
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
 
     rows = df.set_index(df.Adj.where(df.Adj != "/", df.Adv))
     assert rows.loc["bonita", ["Int", "Adj_type", "Noun", "Verb", "Inf_Verb"]].tolist() == [
@@ -313,7 +293,7 @@ def test_noun_outside_phrase_is_dropped(tmp_path):
     words = [(t, u, l) for s in read_conllu(out / "S01.conllu") for _, t, u, l, _, _ in s]
     (tagged / "S01.txt").write_text(" ".join("_".join(w) for w in words) + "\n", encoding="utf-8")
 
-    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)), drop_invariant=False)
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
 
     assert df[["Adj", "Adj_type", "Noun"]].values.tolist() == [
         ["agradable", "ambiguous", "/"],
