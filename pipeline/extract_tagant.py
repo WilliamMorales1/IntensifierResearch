@@ -520,7 +520,8 @@ def add_verb(row_data, relations, words):
 
 
 # words both taggers call ADJ, NOUN or VERB that are always adverbs
-always_adverbs = {"entoes", "ahorita", "ahoritica"}
+# the transformer tagger calls cerquita ADJ ("queda súper cerquita")
+always_adverbs = {"entoes", "ahorita", "ahoritica", "cerquita"}
 
 
 def is_weather_noun(words, i):

@@ -14,17 +14,17 @@ from extract_tagant import (
     write_outputs,
 )
 
-# the charlm pos model is ~25x slower on CPU
+# stanza's default_accurate: transformer (BERTIN RoBERTa) pos and depparse; tokenize and lemma have no
+# transformer model for Spanish. Needs a GPU (Colab); on this laptop's CPU it takes days
 processors = {
-    "tokenize": "combined_nocharlm",
+    "tokenize": "combined_charlm",
     "mwt": "combined",
-    "pos": "combined_nocharlm",
-    "lemma": "combined_nocharlm",
+    "pos": "combined_bertin-roberta",
+    "lemma": "combined_charlm",
 }
-# the parse reruns the tagger on stanza_corrected words only for xpos/feats;
-# depparse combined_nocharlm fails to load in torch 2.6, and ancora_nocharlm parsed worse by hand
-parse_tagger = {"tokenize": "combined_nocharlm", "pos": "combined_nocharlm"}
-parse_processors = {"depparse": "combined_charlm"}
+# the parse reruns the tagger on stanza_corrected words only for xpos/feats
+parse_tagger = {"tokenize": "combined_charlm", "pos": "combined_bertin-roberta"}
+parse_processors = {"depparse": "combined_bertin-roberta"}
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
@@ -156,6 +156,7 @@ compound_nouns = {
     ("horas", "pico"): "NOUN",
     ("estados", "unidos"): "PROPN",
     ("ave", "maría"): "PROPN",
+    ("ciclo", "vía"): "NOUN",
 }
 
 # "semana santa", "espíritu santo", "santa rita": holy days and saint names, not "todo el santo día"
@@ -180,6 +181,14 @@ def _before_verb(nxt, nxt2):
 def _holy_name(tokens, i):
     prev, nxt, _ = _around(tokens, i)
     return tokens[i][0][0].isupper() or prev[0].lower() in holy_before or nxt[0].lower() in saint_names
+
+
+def _place_name(tokens, i):
+    # "barrio Villa Nueva", "el Nuevo Bosque", "nueva york"; all-caps words are shouted, not names
+    text = tokens[i][0]
+    if text.lower() == "nueva" and _around(tokens, i)[1][0].lower() == "york":
+        return True
+    return text[:1].isupper() and not text.isupper() and i > 0 and tokens[i - 1][1] != "PUNCT"
 
 
 def _adverbial_comparative(tokens, i):
@@ -245,6 +254,23 @@ def _discourse_tail(tokens, i):
     )
 
 
+def _interjection(tokens, i, upos, after_int):
+    low = tokens[i][0].lower()
+    # laughter "jajaja", "jejeje", which the transformer tagger calls ADV
+    if re.fullmatch(r"(j[aeiu])+j?", low):
+        return True
+    # the transformer tagger calls discourse bueno/claro ADV; only claro is also a real adverb ("habla claro")
+    if upos not in ("ADJ", "ADV") or low not in discourse_adjs:
+        return False
+    if upos == "ADV" and low != "claro":
+        return True
+    return (
+        (not after_int and _discourse_slot(tokens, i))
+        or _tag_question(tokens, i)
+        or (low in ("claro", "cierto") and _discourse_tail(tokens, i))
+    )
+
+
 def _focus_quantifier(tokens, i):
     # "puro barro", "solo pescado frito" (nothing but, only) vs "aire puro", "una sola casa", "muy solo"
     prev, nxt, _ = _around(tokens, i)
@@ -252,10 +278,19 @@ def _focus_quantifier(tokens, i):
 
 
 def _quantified_noun(tokens, i):
-    # "hay mucho venezolano", "mucho extranjero": mucho is a quantifier, so the ADJ is a noun
+    # "hay mucho venezolano", "pasa mucho vicioso", ", mucho corrupto": mucho is a quantifier, so the ADJ is a noun;
+    # "era mucho chusco", "se han puesto mucho malos" keep the dialectal intensifier after a copula
     if i == 0 or tokens[i - 1][0].lower() != "mucho" or tokens[i][0].lower() in comparatives:
         return False
-    return tokens[i - 1][1] == "DET" or (i > 1 and tokens[i - 2][2] == "haber")
+    if tokens[i - 1][1] == "DET" or (i > 1 and tokens[i - 2][2] == "haber"):
+        return True
+    before = tokens[i - 2] if i > 1 else _edge
+    return (
+        re.search(r"[^as]$", tokens[i][0].lower()) is not None
+        and before[1] != "AUX"
+        and before[2] not in copular_verbs | {"poner", "volver", "seguir"}
+        and before[0].lower() != "mucho"
+    )
 
 
 def _adverbial_primero(tokens, i):
@@ -325,9 +360,34 @@ def correct_tokens(tokens):
         # "mucho solo" is quantifier + "only", not intensified "lonely"
         elif after_int and low == "solo" and upos == "ADV" and tokens[i - 1][0].lower() != "mucho":
             upos, lemma = "ADJ", "solo"
-        elif upos == "ADJ" and (low == "san" or re.fullmatch(r"sant[oa]s?", low) and _holy_name(tokens, i)):
+        elif upos == "ADJ" and (
+            low == "san" or re.fullmatch(r"sant[oa]s?", low) and _holy_name(tokens, i) or _place_name(tokens, i)
+        ):
             upos = "PROPN"
-        elif low in lateral_words and (low == "celca" or upos == "ADJ"):
+        # "digámoslo", "respétala", "tómenlo": imperatives with enclitic pronouns
+        elif upos == "ADJ" and re.fullmatch(
+            r"[a-zñü]+[áéíóú][a-zñü]*(n|mos|[ae])(me|te|se|nos)?(lo|la|los|las|le|les)", low
+        ):
+            upos = "VERB"
+        elif upos == "ADJ" and low == "menudo" and i > 0 and tokens[i - 1][0].lower() == "a":
+            upos = "ADV"
+        elif upos == "ADJ" and low == "entendido" and i > 0 and tokens[i - 1][2] == "tener":
+            upos, lemma = "VERB", "entender"
+        # vocative "el avión hermano, con problemas" (bro)
+        elif upos == "ADJ" and re.fullmatch(r"herman[oa]s?", low):
+            upos = "NOUN"
+        elif (
+            upos == "ADJ"
+            and low == "regular"
+            and i > 1
+            and tokens[i - 1][0].lower() == "lo"
+            and tokens[i - 2][0].lower() == "por"
+        ):
+            upos = "ADV"
+        # "yo saludo a mi novia"
+        elif upos == "ADJ" and low == "saludo":
+            upos, lemma = "VERB", "saludar"
+        elif low in lateral_words and (low == "celca" or upos in ("ADJ", "ADV")):
             upos, lemma = lateral_words[low]
         elif upos == "ADJ" and low == "mismo" and i > 0 and tokens[i - 1][0].lower() in mismo_advs:
             upos = "ADV"
@@ -340,11 +400,7 @@ def correct_tokens(tokens):
             upos = "NOUN"
         elif upos == "ADJ" and low == "primero" and _adverbial_primero(tokens, i):
             upos = "ADV"
-        elif upos == "ADJ" and (
-            (low in discourse_adjs and not after_int and _discourse_slot(tokens, i))
-            or (low in discourse_adjs and _tag_question(tokens, i))
-            or (low in ("claro", "cierto") and _discourse_tail(tokens, i))
-        ):
+        elif _interjection(tokens, i, upos, after_int):
             upos = "INTJ"
         elif upos == "ADJ" and low in ("mejor", "peor") and _adverbial_comparative(tokens, i):
             upos = "ADV"
@@ -488,7 +544,6 @@ def _parse_file(paths):
 def parse_folder(input_folder, output_folder, workers):
     import stanza
 
-    stanza.download("es", package=None, processors={**parse_tagger, **parse_processors}, verbose=False)
     os.makedirs(output_folder, exist_ok=True)
     for name in os.listdir(output_folder):
         if name.endswith(".part"):
@@ -500,6 +555,9 @@ def parse_folder(input_folder, output_folder, workers):
         if name.endswith(".txt") and not os.path.exists(os.path.join(output_folder, name[:-4] + ".conllu"))
     ]
     print(f"Parsing {len(jobs)} files with stanza ({workers} workers)")
+    if not jobs:
+        return
+    stanza.download("es", package=None, processors={**parse_tagger, **parse_processors}, verbose=False)
     with get_context("spawn").Pool(workers, initializer=_init_parser) as pool:
         for i, name in enumerate(pool.imap_unordered(_parse_file, jobs), 1):
             print(f"[{i}/{len(jobs)}] Parsed: {name}")
@@ -638,7 +696,6 @@ def _tag_file(paths):
 def tag_folder(input_folder, output_folder, workers):
     import stanza
 
-    stanza.download("es", package=None, processors=processors, verbose=False)
     os.makedirs(output_folder, exist_ok=True)
     for name in os.listdir(output_folder):
         if name.endswith(".part"):
@@ -651,6 +708,10 @@ def tag_folder(input_folder, output_folder, workers):
         if name.endswith(".txt") and not os.path.exists(os.path.join(output_folder, name))
     ]
     print(f"Tagging {len(jobs)} files with stanza ({workers} workers)")
+    # the pool initializer loads the models even with nothing to do
+    if not jobs:
+        return
+    stanza.download("es", package=None, processors=processors, verbose=False)
     # spawn, since forking after the parent touched CUDA (stanza import on a GPU box) fails
     with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
         for i, name in enumerate(pool.imap_unordered(_tag_file, jobs), 1):

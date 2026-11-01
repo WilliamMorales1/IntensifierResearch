@@ -454,6 +454,7 @@ def test_lateralized_verb_is_not_adjective(segment):
     [
         ("entoes_ADJ_entoes fuimos_VERB_ir", "entoes"),
         ("ahorita_PRON_ahorita no_ADV_no", "ahorita"),
+        ("queda_VERB_quedar súper_ADV_súper cerquita_ADJ_cerquita", "cerquita"),
         ("hago_VERB_hacer muy_ADV_mucho poquito_ADJ_poquito", "poquito"),
     ],
 )
