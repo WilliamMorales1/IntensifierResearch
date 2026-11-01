@@ -62,12 +62,13 @@ invariant_a = {
 # -esa adjectives whose lemma is -eso, not gentilic -és (francesa -> francés)
 eso_adjs = {"travieso", "obeso", "ileso", "espeso", "grueso", "tieso", "preso"}
 
-# Puerto Rican lateralized /r/ verbs (estal = estar) that taggers call ADJ
+# Puerto Rican lateralized /r/ verbs and other words (estal = estar, polque = porque) that taggers call ADJ
 lateralized_verbs = {
     "acostal", "acueldas", "agarral", "buscal", "cambial", "competil", "conseguil", "consideral", "contal", "creel",
     "dirigil", "entral", "estal", "estudial", "hacel", "ilme", "imaginal", "impactal", "impolta", "levantal",
     "metelnos", "molestal", "paral", "pelial", "pescal", "ponel", "preparal", "prestal", "pronuncial", "quedal",
     "recueldo", "regalal", "respetal", "respiral", "saltal", "solicital", "sulgido", "telmina", "visital", "vivil",
+    "cocinal", "limpial", "celebral", "tratal", "logral", "disfrutal", "telmino", "polque", "helmano", "puelto",
 }  # fmt: skip
 
 forms_of_estar = [

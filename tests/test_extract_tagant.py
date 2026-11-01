@@ -441,7 +441,10 @@ def test_analyze_drops_hosts_never_intensified(tmp_path):
     assert len(pd.read_csv(tmp_path / "out.csv")) == 2
 
 
-@pytest.mark.parametrize("segment", ["pa_ADP_para estal_ADJ_estal", "no_ADV_no me_PRON_yo recueldo_ADJ_recueldo"])
+@pytest.mark.parametrize(
+    "segment",
+    ["pa_ADP_para estal_ADJ_estal", "no_ADV_no me_PRON_yo recueldo_ADJ_recueldo", "de_ADP_de cocinal_ADJ_cocinal"],
+)
 def test_lateralized_verb_is_not_adjective(segment):
     assert process_segment(segment, "S01") == []
 

@@ -28,6 +28,7 @@ parse_processors = {"depparse": "combined_charlm"}
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
+lemma_fixes |= {"chéere": "chévere", "chevre": "chévere", "primelo": "primero"}
 # Puerto Rican /r/ lateralized to /l/ in adjective lemmas
 lemma_fixes |= {
     w: re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w)
@@ -35,7 +36,7 @@ lemma_fixes |= {
         "cielto", "impoltante", "superiol", "mejol", "fuelte", "milital", "avelgonzado", "muelto", "menol",
         "univelsitario", "olganizado", "celcano", "populal", "unifolme", "nelvioso", "coltado", "similal", "colto",
         "pueltorriqueño", "familial", "regulal", "celulal", "pelfecto", "abielto", "insopoltable", "peol",
-        "pelfeccionista", "lalgo",
+        "pelfeccionista", "lalgo", "pelsonal",
     )
 }  # fmt: skip
 # lateralized non-adjectives the tagger calls ADJ
@@ -47,7 +48,28 @@ lateral_words = {
     "calne": ("NOUN", "carne"),
     "palte": ("NOUN", "parte"),
     "hogal": ("NOUN", "hogar"),
+    "polque": ("SCONJ", "porque"),
+    "pol": ("ADP", "por"),
+    "sel": ("AUX", "ser"),
+    "sabol": ("NOUN", "sabor"),
+    "helmano": ("NOUN", "hermano"),
+    "helmanos": ("NOUN", "hermano"),
+    "puelto": ("PROPN", "puerto"),
+    "profesol": ("NOUN", "profesor"),
+    "apaltamento": ("NOUN", "apartamento"),
+    "telmino": ("VERB", "terminar"),
+    "duelmo": ("VERB", "dormir"),
+    "sentalme": ("VERB", "sentar"),
 }
+lateral_words |= {
+    w: ("VERB", re.sub(r"l(?=[^aeiouáéíóú]|$)", "r", w))
+    for w in (
+        "cocinal", "limpial", "llamal", "celebral", "gastal", "destacal", "explotal", "manejal", "hablal", "gualdal",
+        "preocupal", "lleval", "adoptal", "pical", "bañal", "laval", "llenal", "regresal", "folmal", "logral",
+        "disfrutal", "comental", "tratal", "llegal", "jugal", "dural", "salil", "comel", "sobresalil", "asistil",
+        "lucil", "recogel", "correl", "leel", "bebel", "tenel",
+    )
+}  # fmt: skip
 
 _nlp = None
 
@@ -136,6 +158,13 @@ compound_nouns = {
     ("ave", "maría"): "PROPN",
 }
 
+# "semana santa", "espíritu santo", "santa rita": holy days and saint names, not "todo el santo día"
+holy_before = {"semana", "semanas", "espíritu", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"}
+saint_names = {"domingo", "rita", "marta", "maría", "isabel", "rosa", "ana", "lucía", "fe", "bárbara", "catalina",
+               "teresa", "clara", "cruz", "helena", "elena", "inés", "mónica", "sofía", "tomás"}  # fmt: skip
+# "ahí mismo", "ahora mismo" (right there, right now) vs "yo mismo", "lo mismo"
+mismo_advs = {"ahí", "aquí", "acá", "allí", "allá", "así", "ahora", "ahorita", "hoy", "ya", "ayer", "mañana"}
+
 
 def _around(tokens, i):
     prev = tokens[i - 1] if i > 0 else _edge
@@ -146,6 +175,11 @@ def _around(tokens, i):
 
 def _before_verb(nxt, nxt2):
     return nxt[1] in ("VERB", "AUX") or (nxt[0].lower() in clitics and nxt2[1] in ("VERB", "AUX"))
+
+
+def _holy_name(tokens, i):
+    prev, nxt, _ = _around(tokens, i)
+    return tokens[i][0][0].isupper() or prev[0].lower() in holy_before or nxt[0].lower() in saint_names
 
 
 def _adverbial_comparative(tokens, i):
@@ -291,8 +325,12 @@ def correct_tokens(tokens):
         # "mucho solo" is quantifier + "only", not intensified "lonely"
         elif after_int and low == "solo" and upos == "ADV" and tokens[i - 1][0].lower() != "mucho":
             upos, lemma = "ADJ", "solo"
-        elif upos == "ADJ" and (low == "san" or text[0].isupper() and low in ("santa", "santo", "santos", "santas")):
+        elif upos == "ADJ" and (low == "san" or re.fullmatch(r"sant[oa]s?", low) and _holy_name(tokens, i)):
             upos = "PROPN"
+        elif low in lateral_words and (low == "celca" or upos == "ADJ"):
+            upos, lemma = lateral_words[low]
+        elif upos == "ADJ" and low == "mismo" and i > 0 and tokens[i - 1][0].lower() in mismo_advs:
+            upos = "ADV"
         elif upos == "ADJ" and i > 0 and (tokens[i - 1][0].lower(), low) in compound_nouns:
             upos = compound_nouns[(tokens[i - 1][0].lower(), low)]
         # "mi cuarto", "menos cuarto" (room, quarter hour) vs "cuarto piso"
@@ -340,8 +378,6 @@ def correct_tokens(tokens):
             low == "total" and _adverbial_total(tokens, i) or low == "seguro" and _adverbial_seguro(tokens, i)
         ):
             upos = "ADV"
-        elif low in lateral_words and (low == "celca" or upos == "ADJ"):
-            upos, lemma = lateral_words[low]
         elif upos in ("NOUN", "PROPN", "VERB") and low in dialect_adjs:
             upos, lemma = "ADJ", dialect_adjs[low]
         # muy only modifies a noun used as an adjective: "muy amigo", "muy niña", "muy trabajadores"

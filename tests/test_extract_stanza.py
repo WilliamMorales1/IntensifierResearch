@@ -206,6 +206,18 @@ def test_join_paragraphs_ends_turns_with_period():
         ("muy_ADV_mucho complicao_ADJ_complicao", "muy_ADV_mucho complicao_ADJ_complicado"),
         ("muy_ADV_mucho alto_ADJ_alto", "muy_ADV_mucho alto_ADJ_alto"),
         ("muy_ADV_mucho parte_NOUN_parte de_ADP_de", "muy_ADV_mucho parte_NOUN_parte de_ADP_de"),
+        ("desde_ADP_desde cocinal_ADJ_cocinal", "desde_ADP_desde cocinal_VERB_cocinar"),
+        ("de_ADP_de gualdal_ADJ_gualdal", "de_ADP_de gualdal_VERB_guardar"),
+        ("tiempo_NOUN_tiempo polque_ADJ_polque no_ADV_no", "tiempo_NOUN_tiempo polque_SCONJ_porque no_ADV_no"),
+        ("mucho_DET_mucho sabol_ADJ_sabol", "mucho_DET_mucho sabol_NOUN_sabor"),
+        ("muy_ADV_mucho chéere_ADJ_chéere", "muy_ADV_mucho chéere_ADJ_chévere"),
+        ("mi_DET_mi primel_ADJ_primelo año_NOUN_año", "mi_DET_mi primel_ADJ_primero año_NOUN_año"),
+        ("la_DET_el semana_NOUN_semana santa_ADJ_santo", "la_DET_el semana_NOUN_semana santa_PROPN_santo"),
+        ("de_ADP_de santo_ADJ_santo domingo_NOUN_domingo", "de_ADP_de santo_PROPN_santo domingo_NOUN_domingo"),
+        ("el_DET_el santo_ADJ_santo día_NOUN_día", "el_DET_el santo_ADJ_santo día_NOUN_día"),
+        ("ahí_ADV_ahí mismo_ADJ_mismo fue_AUX_ser", "ahí_ADV_ahí mismo_ADV_mismo fue_AUX_ser"),
+        ("ahora_ADV_ahora mismo_ADJ_mismo ,_PUNCT_,", "ahora_ADV_ahora mismo_ADV_mismo ,_PUNCT_,"),
+        ("uno_PRON_uno mismo_ADJ_mismo ,_PUNCT_,", "uno_PRON_uno mismo_ADJ_mismo ,_PUNCT_,"),
     ],
 )
 def test_correct_line(line, fixed):
