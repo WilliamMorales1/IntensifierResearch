@@ -80,6 +80,25 @@ clitics = {"me", "te", "se", "nos", "le", "les", "lo", "la", "los", "las"}
 possessives = {p + e for p in ("mí", "tuy", "suy", "nuestr", "vuestr") for e in ("o", "a", "os", "as")}
 comparatives = {"mejor", "mejores", "peor", "peores", "mayor", "mayores", "menor", "menores"}
 _edge = ("", "PUNCT", "")
+fillers = {
+    "mhm",
+    "mjum",
+    "ajá",
+    "aja",
+    "eh",
+    "eeh",
+    "ehh",
+    "mm",
+    "mmm",
+    "hum",
+    "humm",
+    "jum",
+    "ah",
+    "aah",
+    "umm",
+    "ehm",
+}
+discourse_adjs = ("bueno", "claro", "exacto")
 
 
 def _around(tokens, i):
@@ -122,12 +141,20 @@ def _adverbial_igual(tokens, i):
 
 
 def _discourse_slot(tokens, i):
-    # clause-initial and not before a noun: "bueno, ...", "y bueno eso fue", "claro que sí"
+    # clause-initial and not before a noun: "bueno, ...", "y bueno eso fue", "claro que sí", "mjum exacto", "claro claro"
     prev, nxt, _ = _around(tokens, i)
-    return nxt[1] not in ("NOUN", "PROPN") and (
+    return (nxt[1] not in ("NOUN", "PROPN") or nxt[0].lower() in fillers) and (
         prev[1] in ("PUNCT", "CCONJ", "INTJ")
-        or prev[0].lower() in ("sí", "pues", "porque", "no", "ah", "ay", "eh", "y", "o", "pero")
+        or prev[0].lower() in ("sí", "pues", "porque", "no", "ay", "y", "o", "pero", *fillers, *discourse_adjs)
     )
+
+
+def _tag_question(tokens, i):
+    # "¿cierto?", "¿no cierto?", "¿claro?"; "es cierto?" stays ADJ
+    prev, nxt, _ = _around(tokens, i)
+    if nxt[0] != "?":
+        return False
+    return prev[0] == "¿" or (prev[0].lower() == "no" and i > 1 and tokens[i - 2][0] == "¿")
 
 
 def _quantified_noun(tokens, i):
@@ -150,7 +177,10 @@ def correct_tokens(tokens):
             upos, lemma = "ADJ", "solo"
         elif upos == "ADJ" and text[0].isupper() and low in ("san", "santa", "santo", "santos", "santas"):
             upos = "PROPN"
-        elif upos == "ADJ" and low in ("bueno", "claro") and not after_int and _discourse_slot(tokens, i):
+        elif upos == "ADJ" and (
+            (low in discourse_adjs and not after_int and _discourse_slot(tokens, i))
+            or (low in (*discourse_adjs, "cierto") and _tag_question(tokens, i))
+        ):
             upos = "INTJ"
         elif upos == "ADJ" and low in ("mejor", "peor") and _adverbial_comparative(tokens, i):
             upos = "ADV"
@@ -336,15 +366,22 @@ copular_verbs = {"ser", "estar", "parecer", "quedar", "sentir"}
 
 
 def adjective_relation(sent, w):
-    # "bonita y grande": the second conjunct shares the first one's relation
-    while w.deprel == "conj" and w.head and _head(sent, w).upos == "ADJ":
+    # "bonita y grande": the second conjunct shares the first one's relation; so do lists and
+    # repeats the parser hangs as amod on the first adjective ("muy organizado muy bonito")
+    while w.deprel in ("conj", "amod") and w.head and _head(sent, w).upos == "ADJ":
         w = _head(sent, w)
     head = _head(sent, w)
     rel = w.deprel.split(":")[0]
+    # "mhm, muy joven": the parser takes a filler for the noun
+    if head is not None and head.text.lower() in fillers:
+        return "ambiguous", "/"
     if rel == "amod" and head is not None:
         return "attributive", _noun([head], w)
     if _children(sent, w, "cop"):
         return "predicative", _noun(_children(sent, w, "nsubj"), w)
+    # "una cabuya atravesada en la calle": participle phrases after a noun
+    if rel == "acl" and head is not None and head.upos in ("NOUN", "PROPN"):
+        return "attributive", _noun([head], w)
     if rel == "xcomp" and head is not None:
         # "lo veo bonito" describes the object, "se puso feo" the subject
         return "predicative", _noun(_children(sent, head, "obj") or _children(sent, head, "nsubj"), w)

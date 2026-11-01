@@ -108,19 +108,19 @@ Hand judgment of every token where the taggers disagree on the host after an int
 
 - Stanza's are a closed list (*poco*, *solo*, *claro*, *San*, participle lemmas), fixed by `correct_tokens` above.
 - TagAnt's are open-ended: dialectal and participial adjectives tagged NOUN or VERB (*maluco*, *berraco*, *chévere*, *amañado*, *complicao*), garbage lemmas (*deliciosa* -> *delició*), and Puerto Rican lateralized /r/ verbs tagged ADJ (*estal*, *hacel*, *impolta*), which biases that corpus's rate down.
-- The dependency parse leaves 19.9% of adjective rows ambiguous, against 43.6% for word order.
+- The dependency parse leaves 19.1% of adjective rows ambiguous, against 43.6% for word order.
 
 Snapshot, `2026-10-31`:
 
 | | TagAnt | Stanza |
 | --- | --- | --- |
-| rows | 120,524 | 120,438 |
-| intensified rows | 9,169 | 9,363 |
-| adjective rows | 58,768 | 54,973 |
-| adjective rows intensified | 14.78% | 16.13% |
-| `Adj_type` ambiguous | 43.6% | 19.9% |
-| rows, `--drop-invariant` | 50,022 | 48,376 |
-| adjective rows intensified, `--drop-invariant` | 20.44% | 21.98% |
+| rows | 120,524 | 120,216 |
+| intensified rows | 9,169 | 9,358 |
+| adjective rows | 58,768 | 54,004 |
+| adjective rows intensified | 14.78% | 16.21% |
+| `Adj_type` ambiguous | 43.6% | 19.1% |
+| rows, `--drop-invariant` | 50,022 | 48,248 |
+| adjective rows intensified, `--drop-invariant` | 20.44% | 21.84% |
 | hosts, `--drop-invariant` | 1,337 | 1,382 |
 
 Stanza's rate is about 1.35 pp higher in every gender, education and city group, because TagAnt's false bare adjectives stay in its denominator; group gaps and order are unchanged. `Adj_type` splits are not comparable between the pipelines; intensification rates are.

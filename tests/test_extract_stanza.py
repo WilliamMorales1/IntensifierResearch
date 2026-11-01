@@ -89,6 +89,16 @@ def test_join_paragraphs_ends_turns_with_period():
         ("._PUNCT_. Bueno_ADJ_bueno ahora_ADV_ahora", "._PUNCT_. Bueno_INTJ_bueno ahora_ADV_ahora"),
         ("que_SCONJ_que bueno_ADJ_bueno", "que_SCONJ_que bueno_ADJ_bueno"),
         ("lo_PRON_él bueno_ADJ_bueno", "lo_PRON_él bueno_ADJ_bueno"),
+        ("¿_PUNCT_¿ cierto_ADJ_cierto ?_PUNCT_?", "¿_PUNCT_¿ cierto_INTJ_cierto ?_PUNCT_?"),
+        ("¿_PUNCT_¿ no_ADV_no cierto_ADJ_cierto ?_PUNCT_?", "¿_PUNCT_¿ no_ADV_no cierto_INTJ_cierto ?_PUNCT_?"),
+        ("es_AUX_ser cierto_ADJ_cierto ?_PUNCT_?", "es_AUX_ser cierto_ADJ_cierto ?_PUNCT_?"),
+        ("mjum_NOUN_mjum exacto_ADJ_exacto es_AUX_ser", "mjum_NOUN_mjum exacto_INTJ_exacto es_AUX_ser"),
+        ("?_PUNCT_? claro_ADJ_claro mjum_NOUN_mjum", "?_PUNCT_? claro_INTJ_claro mjum_NOUN_mjum"),
+        (
+            "claro_INTJ_claro claro_ADJ_claro porque_SCONJ_porque",
+            "claro_INTJ_claro claro_INTJ_claro porque_SCONJ_porque",
+        ),
+        ("el_DET_el momento_NOUN_momento exacto_ADJ_exacto", "el_DET_el momento_NOUN_momento exacto_ADJ_exacto"),
         ("mejor_ADJ_mejor dicho_ADJ_dicho", "mejor_ADV_mejor dicho_VERB_decir"),
         ("a_ADP_a lo_PRON_él mejor_ADJ_mejor", "a_ADP_a lo_PRON_él mejor_ADV_mejor"),
         ("mejor_ADJ_mejor me_PRON_yo voy_VERB_ir", "mejor_ADV_mejor me_PRON_yo voy_VERB_ir"),
@@ -235,6 +245,35 @@ def test_adjective_under_copular_verb_is_predicative(tmp_path):
     first, second = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
     assert first[3] == ("predicative", "comida", "queda", "quedar")
     assert second[3].adj_type == "ambiguous"
+
+
+def test_adjective_relation_lists_fillers_participles(tmp_path):
+    # está muy organizado muy bonito ; mhm , muy joven ; una cabuya atravesada
+    (tmp_path / "S01.conllu").write_text(
+        conllu(
+            ("está", "AUX", "estar", 3, "cop"),
+            ("muy", "ADV", "mucho", 3, "advmod"),
+            ("organizado", "ADJ", "organizado", 0, "root"),
+            ("muy", "ADV", "mucho", 5, "advmod"),
+            ("bonito", "ADJ", "bonito", 3, "amod"),
+        )
+        + conllu(
+            ("mhm", "NOUN", "mhm", 0, "root"),
+            (",", "PUNCT", ",", 4, "punct"),
+            ("muy", "ADV", "mucho", 4, "advmod"),
+            ("joven", "ADJ", "joven", 1, "amod"),
+        )
+        + conllu(
+            ("una", "DET", "uno", 2, "det"),
+            ("cabuya", "NOUN", "cabuya", 0, "root"),
+            ("atravesada", "ADJ", "atravesado", 2, "acl"),
+        ),
+        encoding="utf-8",
+    )
+    first, second, third = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
+    assert first[4].adj_type == "predicative"
+    assert second[3].adj_type == "ambiguous"
+    assert third[2][:2] == ("attributive", "cabuya")
 
 
 def test_analyze_reads_relations_from_parse(tmp_path):
