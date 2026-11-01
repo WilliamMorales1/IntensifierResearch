@@ -606,8 +606,8 @@ def process_segment(segment, speaker, parse=None):
                 double = "/"
 
             if lex_adjective.endswith("ísimo"):
-                # muchísimos is a quantifier TagAnt calls ADJ
-                if lex_adjective.startswith("muchísim"):
+                # muchísimos, tantísimas are quantifiers TagAnt calls ADJ
+                if lex_adjective.startswith(("muchísim", "tantísim")):
                     continue
                 intensifier = "-ísimo"
                 adjective = adjective.replace("quísim", "c")
@@ -646,7 +646,7 @@ def process_segment(segment, speaker, parse=None):
         if is_adv(word) and not is_fragment(words, i):
             adverb = get_adv(word)
             # muchísimo is the intensifier mucho itself, not a host
-            if adverb.startswith("muchísim"):
+            if adverb.startswith(("muchísim", "tantísim")):
                 continue
             isimo_base = strip_isimo_adv(adverb)
 
@@ -699,6 +699,68 @@ def drop_invariant_hosts(df):
     varies = (df["Int"] != "/").groupby(host).transform("any")
     print(f"Dropped {(~varies).sum()} rows of {host[~varies].nunique()} hosts never intensified")
     return df[varies].reset_index(drop=True)
+
+
+def isimo_base(stem, lexicon):
+    """isimo_base picks the host an -ísimo stem comes from (grand -> grande, facil -> fácil) using lexicon."""
+    if stem in isimo_adv_base:
+        return isimo_adv_base[stem]
+    candidates = [stem + "o", stem + "e", stem, stem + "os"]
+    if stem.endswith("bil"):
+        candidates.append(stem[:-3] + "ble")
+    # felicísimo, antiquísimo (qu was already turned into c)
+    if stem.endswith("c"):
+        candidates += [stem[:-1] + "z", stem[:-1] + "guo"]
+    for candidate in candidates:
+        if deaccent(candidate) in lexicon:
+            return lexicon[deaccent(candidate)]
+    if re.search(r"n[dt]$|rav$", stem):
+        return stem + "e"
+    return stem + "o"
+
+
+def _host_lexicon(hosts):
+    # accentless key, since -ísimo drops the base's accent (rápido -> rapidísimo)
+    lexicon = {}
+    for host, _ in Counter(hosts).most_common():
+        lexicon.setdefault(deaccent(host), host)
+    return lexicon
+
+
+def _rebase_surface(surface, stem, base):
+    # granda -> grande, grandas -> grandes, rapida -> rápida
+    if not surface.startswith(stem):
+        return surface
+    ending = surface[len(stem) :]
+    if base.endswith("o"):
+        return base[:-1] + ending
+    if ending.endswith("s") and not base.endswith("s"):
+        return base + ("s" if base[-1] in "aeiouáéíóú" else "es")
+    return base
+
+
+def fix_isimo_hosts(df):
+    """fix_isimo_hosts replaces the default -o base of -ísimo hosts (grando, importanto) with the corpus form."""
+    if df.empty:
+        return df
+    df = df.copy()
+    isimo = df["Int"] == "-ísimo"
+    adj_rows = df["Adj"] != "/"
+    adj_lexicon = _host_lexicon(df.loc[~isimo & adj_rows, "Lex_Adj"])
+    adv_lexicon = _host_lexicon(list(df.loc[~isimo & ~adj_rows, "Adv"].str.lower()) + list(adj_lexicon.values()))
+    for i in df.index[isimo & adj_rows]:
+        lex = df.at[i, "Lex_Adj"]
+        if not lex.endswith("o"):
+            continue
+        stem = lex[:-1]
+        base = isimo_base(stem, adj_lexicon)
+        df.at[i, "Lex_Adj"] = base
+        df.at[i, "Adj"] = _rebase_surface(df.at[i, "Adj"], stem, base)
+    for i in df.index[isimo & ~adj_rows]:
+        adv = df.at[i, "Adv"]
+        if adv.endswith("o"):
+            df.at[i, "Adv"] = isimo_base(adv[:-1], adv_lexicon)
+    return df
 
 
 def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_invariant=False):
@@ -762,6 +824,7 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_inv
             print(f"No valid rows found in file: {filename}")
 
     data = pd.concat(data_frames, ignore_index=True) if data_frames else pd.DataFrame()
+    data = fix_isimo_hosts(data)
     # hosts with no variation tell nothing about the choice to intensify
     if drop_invariant:
         data = drop_invariant_hosts(data)

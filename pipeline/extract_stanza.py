@@ -99,6 +99,10 @@ fillers = {
     "ehm",
 }
 discourse_adjs = ("bueno", "claro", "exacto")
+# Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN or VERB
+dialect_adjs = {"chéere": "chévere", "chevre": "chévere", "chevere": "chévere", "conchudo": "conchudo"}
+# nouns after muy that are not used as adjectives ("muy falta de", "muy toma trago"), or are cut-off words
+muy_nouns = {"gente", "cosas", "falta", "toma", "pulpa", "maleza", "masa", "carga", "calma", "dema", "ente"}
 
 
 def _around(tokens, i):
@@ -192,6 +196,11 @@ def correct_tokens(tokens):
             upos = "DET"
         elif upos == "ADJ" and _quantified_noun(tokens, i):
             upos = "NOUN"
+        elif upos in ("NOUN", "PROPN", "VERB") and low in dialect_adjs:
+            upos, lemma = "ADJ", dialect_adjs[low]
+        # muy only modifies a noun used as an adjective: "muy amigo", "muy niña", "muy trabajadores"
+        elif upos == "NOUN" and i > 0 and tokens[i - 1][0].lower() == "muy" and len(low) > 3 and low not in muy_nouns:
+            upos = "ADJ"
         elif upos == "ADJ" and re.search(r"(d|t|ch|s)[oa]s?$", low) and re.search(r"[aeií]r$", lemma):
             # participles get the verb as lemma (dado -> dar), but Lex_Adj wants the adjective
             lemma = re.sub(r"[oa]s?$", "o", low)
@@ -351,12 +360,13 @@ def governing_verb(sent, w):
     # nominal predicates head their clause in UD, so "es muy bonita" yields the copula
     x = w
     while x is not None:
-        if x.upos == "VERB":
+        # w itself can be a parsed VERB that correct_tokens made an ADJ ("muy chéere")
+        if x.upos == "VERB" and x is not w:
             return x
         cop = _children(sent, x, "cop")
         if cop:
             return cop[0]
-        if x.upos == "AUX":
+        if x.upos == "AUX" and x is not w:
             return x
         x = _head(sent, x)
     return None
@@ -399,10 +409,11 @@ def adjective_relation(sent, w):
 def sentence_relations(sent):
     out = []
     for w in sent:
-        if w.upos not in ("ADJ", "ADV"):
+        # correct_tokens can turn a parsed NOUN or VERB into an ADJ after the parse was made
+        if w.upos not in ("ADJ", "ADV", "NOUN", "PROPN", "VERB"):
             out.append(None)
             continue
-        adj_type, noun = adjective_relation(sent, w) if w.upos == "ADJ" else ("/", "/")
+        adj_type, noun = adjective_relation(sent, w) if w.upos != "ADV" else ("/", "/")
         verb = governing_verb(sent, w)
         out.append(Relations(adj_type, noun, verb.text if verb else "/", verb.lemma if verb else "/"))
     return out

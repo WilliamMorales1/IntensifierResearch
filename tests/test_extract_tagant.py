@@ -9,8 +9,10 @@ from extract_tagant import (
     closest_verb_non_infinitive,
     count_syllables,
     drop_invariant_hosts,
+    fix_isimo_hosts,
     get_adj,
     get_int,
+    isimo_base,
     numero,
     process_segment,
     remove_other_turns,
@@ -257,6 +259,7 @@ def test_disfluency_fragments_dropped(segment, hosts):
 
 def test_isimo_quantifier_dropped():
     assert process_segment("muchísimas_ADJ_muchísimo cosas_NOUN_cosa", "S01") == []
+    assert process_segment("tantísimas_ADJ_tantísimo cosas_NOUN_cosa", "S01") == []
     assert process_segment("me_PRON_yo gusta_VERB_gustar muchísimo_ADV_muchísimo", "S01") == []
 
 
@@ -273,6 +276,52 @@ def test_isimo_quantifier_dropped():
 def test_isimo_adverb_restores_base(segment, adv):
     (row,) = process_segment(segment, "S01")
     assert (row["Int"], row["Adv"]) == ("-ísimo", adv)
+
+
+@pytest.mark.parametrize(
+    ("stem", "base"),
+    [
+        ("grand", "grande"),
+        ("facil", "fácil"),
+        ("rapid", "rápido"),
+        ("chever", "chévere"),
+        ("amabil", "amable"),
+        ("antic", "antiguo"),
+        ("buen", "bueno"),
+        ("lej", "lejos"),
+        # not in the lexicon: rules
+        ("important", "importante"),
+        ("grav", "grave"),
+        ("hermos", "hermoso"),
+    ],
+)
+def test_isimo_base(stem, base):
+    lexicon = {"grande": "grande", "facil": "fácil", "rapido": "rápido", "chevere": "chévere"}
+    lexicon |= {"amable": "amable", "antiguo": "antiguo", "bueno": "bueno"}
+    assert isimo_base(stem, lexicon) == base
+
+
+def test_fix_isimo_hosts_uses_corpus_forms():
+    def row(int_, adj, lex, adv="/"):
+        return {"Int": int_, "Adj": adj, "Lex_Adj": lex, "Adv": adv}
+
+    df = pd.DataFrame(
+        [
+            row("/", "grandes", "grande"),
+            row("/", "fáciles", "fácil"),
+            row("/", "/", "/", "rápido"),
+            row("-ísimo", "grandas", "grando"),
+            row("-ísimo", "granda", "grando"),
+            row("-ísimo", "facilos", "facilo"),
+            row("-ísimo", "buena", "bueno"),
+            row("-ísimo", "lejos", "lejo"),
+            row("-ísimo", "/", "/", "rapido"),
+        ]
+    )
+    out = fix_isimo_hosts(df).iloc[3:]
+    assert list(out["Adj"]) == ["grandes", "grande", "fáciles", "buena", "lejos", "/"]
+    assert list(out["Lex_Adj"]) == ["grande", "grande", "fácil", "bueno", "lejos", "/"]
+    assert out["Adv"].iloc[-1] == "rápido"
 
 
 @pytest.mark.parametrize(

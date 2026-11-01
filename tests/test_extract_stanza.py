@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from extract_stanza import (
+    Dep,
     chunk_sentence,
     correct_folder,
     correct_line,
@@ -124,6 +125,13 @@ def test_join_paragraphs_ends_turns_with_period():
         ("mucho_DET_mucho extranjero_ADJ_extranjero", "mucho_DET_mucho extranjero_NOUN_extranjero"),
         ("es_AUX_ser mucho_ADV_mucho vicioso_ADJ_vicioso", "es_AUX_ser mucho_ADV_mucho vicioso_ADJ_vicioso"),
         ("hay_VERB_haber mucho_PRON_mucho mejor_ADJ_mejor", "hay_VERB_haber mucho_PRON_mucho mejor_ADJ_mejor"),
+        ("es_AUX_ser muy_ADV_mucho amigo_NOUN_amigo", "es_AUX_ser muy_ADV_mucho amigo_ADJ_amigo"),
+        ("son_AUX_ser muy_ADV_mucho caras_NOUN_cara", "son_AUX_ser muy_ADV_mucho caras_ADJ_cara"),
+        ("muy_ADV_mucho falta_NOUN_falta de_ADP_de", "muy_ADV_mucho falta_NOUN_falta de_ADP_de"),
+        ("muy_ADV_mucho val_NOUN_val", "muy_ADV_mucho val_NOUN_val"),
+        ("súper_ADV_súper restaurante_NOUN_restaurante", "súper_ADV_súper restaurante_NOUN_restaurante"),
+        ("fue_AUX_ser muy_ADV_mucho chéere_VERB_cherer", "fue_AUX_ser muy_ADV_mucho chéere_ADJ_chévere"),
+        ("un_DET_uno chevre_NOUN_chevre", "un_DET_uno chevre_ADJ_chévere"),
     ],
 )
 def test_correct_line(line, fixed):
@@ -202,11 +210,32 @@ def test_sentence_relations(tmp_path):
     assert first[4] == ("predicative", "casa", "es", "ser")
     assert first[6] == ("predicative", "casa", "es", "ser")
     assert first[3] == ("/", "/", "es", "ser")
-    assert first[1] is None
+    assert first[0] is None
     # object is a pronoun, so no noun
     assert second[3] == ("predicative", "/", "veo", "ver")
     assert third[4] == ("attributive", "casas", "vivo", "vivir")
     assert third[6] == ("/", "/", "vivo", "vivir")
+
+
+def test_noun_parsed_before_correction_gets_relation():
+    # "él es muy amigo": correct_tokens makes amigo ADJ after the parse called it NOUN
+    sent = [
+        Dep(1, "él", "PRON", "él", 4, "nsubj"),
+        Dep(2, "es", "AUX", "ser", 4, "cop"),
+        Dep(3, "muy", "ADV", "mucho", 4, "advmod"),
+        Dep(4, "amigo", "NOUN", "amigo", 0, "root"),
+    ]
+    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser")
+
+
+def test_verb_parsed_before_correction_is_not_its_own_verb():
+    # "fue muy chéere": the parse made chéere a VERB heading the clause
+    sent = [
+        Dep(1, "fue", "AUX", "ser", 3, "cop"),
+        Dep(2, "muy", "ADV", "mucho", 3, "advmod"),
+        Dep(3, "chéere", "VERB", "chévere", 0, "root"),
+    ]
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser")
 
 
 def test_predicative_subject_is_nearest(tmp_path):

@@ -82,7 +82,8 @@ Both taggers, in `extract_tagant.py`:
 | *más bien* + host | host kept, no intensifier |
 | disfluency fragments (*muy bue muy bueno*, *muy d muy rápido*) | row dropped |
 | feminine lemmas in *-dora/-tora/-sora* | *acogedora* -> *acogedor*, not *acogedoro* |
-| *muchísimo/a/os* | row dropped |
+| *muchísimo/a/os*, *tantísimas* | row dropped |
+| *-ísimo* bases (*grandísimo*, *facilísimo*, *cheverísimo*) | base form found in the corpus: *grande*, *fácil*, *chévere*, not *grando*, *facilo*, *chevero* |
 | hosts never intensified anywhere in the corpus (*ya*, *entonces*, *mismo*, *último*), grouped by `Lex_Adj` or by the adverb with `--drop-invariant` (`analyze(..., drop_invariant=True)`), all their rows dropped; off by default |
 
 Stanza only, `correct_tokens` in `extract_stanza.py` (each rule hand-checked against TagAnt on samples):
@@ -99,8 +100,10 @@ Stanza only, `correct_tokens` in `extract_stanza.py` (each rule hand-checked aga
 | possessives *mío/tuyo/suyo/nuestro* ADJ | DET |
 | *hay mucho venezolano* (noun as ADJ) | NOUN after DET *mucho* or *haber* |
 | participle lemma = verb (*dado* -> *dar*), *chéveres* -> *chéver* | masculine singular form, *chévere* |
+| nouns used as adjectives after *muy* (*muy amigo*, *muy niña*, *muy trabajadores*) NOUN | ADJ, except a short list (*muy falta de*, *muy toma trago*) |
+| *chéere/chevre/chevere*, *conchudo* VERB or NOUN | ADJ |
 
-Known gaps: *mucho* + adjective after a copula (*era mucho chusco*) is left alone as possibly dialectal; *solo* and *mismo* keep each tagger's ADJ tags; interviewer backchannels (*mhm*, *qué bueno*) on their own lines can't be told from the participant's. Check the *-ísimo* rows by hand.
+Known gaps: *mucho* + adjective after a copula (*era mucho chusco*) is left alone as possibly dialectal; *solo* and *mismo* keep each tagger's ADJ tags; interviewer backchannels (*mhm*, *qué bueno*) on their own lines can't be told from the participant's.
 
 ## TagAnt or Stanza
 
@@ -108,20 +111,20 @@ Hand judgment of every token where the taggers disagree on the host after an int
 
 - Stanza's are a closed list (*poco*, *solo*, *claro*, *San*, participle lemmas), fixed by `correct_tokens` above.
 - TagAnt's are open-ended: dialectal and participial adjectives tagged NOUN or VERB (*maluco*, *berraco*, *chévere*, *amañado*, *complicao*), garbage lemmas (*deliciosa* -> *delició*), and Puerto Rican lateralized /r/ verbs tagged ADJ (*estal*, *hacel*, *impolta*), which biases that corpus's rate down.
-- The dependency parse leaves 19.1% of adjective rows ambiguous, against 43.6% for word order.
+- The dependency parse leaves 19.1% of adjective rows ambiguous, against 43.1% for word order.
 
-Snapshot, `2026-10-31`:
+Snapshot, `2026-11-01`:
 
 | | TagAnt | Stanza |
 | --- | --- | --- |
-| rows | 120,524 | 120,216 |
-| intensified rows | 9,169 | 9,358 |
-| adjective rows | 58,768 | 54,004 |
-| adjective rows intensified | 14.78% | 16.21% |
-| `Adj_type` ambiguous | 43.6% | 19.1% |
-| rows, `--drop-invariant` | 50,022 | 48,248 |
-| adjective rows intensified, `--drop-invariant` | 20.44% | 21.84% |
-| hosts, `--drop-invariant` | 1,337 | 1,382 |
+| rows | 120,379 | 120,293 |
+| intensified rows | 9,174 | 9,422 |
+| adjective rows | 57,686 | 54,081 |
+| adjective rows intensified | 14.86% | 16.31% |
+| `Adj_type` ambiguous | 43.1% | 19.1% |
+| rows, `--drop-invariant` | 48,923 | 48,325 |
+| adjective rows intensified, `--drop-invariant` | 20.50% | 21.96% |
+| hosts, `--drop-invariant` | 1,318 | 1,381 |
 
 Stanza's rate is about 1.35 pp higher in every gender, education and city group, because TagAnt's false bare adjectives stay in its denominator; group gaps and order are unchanged. `Adj_type` splits are not comparable between the pipelines; intensification rates are.
 
