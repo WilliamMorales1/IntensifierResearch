@@ -1,3 +1,4 @@
+import argparse
 import bisect
 import os
 import re
@@ -282,7 +283,9 @@ non_gradable = {
 # endings that turn a host into a fuller form of the same word rather than completing a cut-off one
 inflection = re.compile(r"(e?s|[oa]s?|mente|(uc|it|ic|ísim)[oa]s?)")
 # transcript speaker labels ("J: -pues") that clean_transcripts missed; TagAnt glues the dash onto the next word
-speaker_label = re.compile(r"(?<!\S)[A-ZÁÉÍÓÚÑ]{1,3}\.?_[A-Z]+_\S* :_PUNCT_:(?: -_PUNCT_-)?(?: -(\S+?)_([A-Z]+)_-?(\S*))?")
+speaker_label = re.compile(
+    r"(?<!\S)[A-ZÁÉÍÓÚÑ]{1,3}\.?_[A-Z]+_\S* :_PUNCT_:(?: -_PUNCT_-)?(?: -(\S+?)_([A-Z]+)_-?(\S*))?"
+)
 turn_label = re.compile(r"(?<!\S)([A-ZÁÉÍÓÚÑ]{1,3})\.?_[A-Z]+_\S* :_PUNCT_:")
 turn_question = re.compile(r".*?\?_PUNCT_\?(?:\s+(?:[,.]_PUNCT_[,.]\s+)?¿_PUNCT_¿.*?\?_PUNCT_\?)*")
 # transcribers also mark a third voice inside the participant's turn: "F: -(tercera voz) sigue"
@@ -346,21 +349,13 @@ def strip_speaker_labels(content):
 
 
 def is_well_formed(word):
-    return bool(
-        any(word.endswith(c) for c in "oaeslndr")
-        and re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑí]+$", word)
-    )
+    return bool(any(word.endswith(c) for c in "oaeslndr") and re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑí]+$", word))
 
 
 def is_adj(word):
     adj_match = re.search(r"^(.*)_ADJ_", word)
     lex_adj_match = re.search(r"_ADJ_(.+)", word)
-    return bool(
-        adj_match
-        and lex_adj_match
-        and is_well_formed(word)
-        and not word.endswith("mente")
-    )
+    return bool(adj_match and lex_adj_match and is_well_formed(word) and not word.endswith("mente"))
 
 
 def log_re_word(word):
@@ -439,14 +434,14 @@ def get_int(word):
 
 def is_mas_bien(words, i):
     # "más bien" means "rather", so bien there is not an intensifier
-    return i > 1 and words[i - 1].split("_")[0].lower() == "bien" and words[i - 2].split("_")[0].lower() in ("más", "mas")
+    return (
+        i > 1 and words[i - 1].split("_")[0].lower() == "bien" and words[i - 2].split("_")[0].lower() in ("más", "mas")
+    )
 
 
 def is_copula(word):
     parts = word.split("_")
-    return parts[0].lower() in copulas or (
-        len(parts) >= 3 and parts[-1].lower() in copula_lemmas
-    )
+    return parts[0].lower() in copulas or (len(parts) >= 3 and parts[-1].lower() in copula_lemmas)
 
 
 def add_verb(row_data, relations, words):
@@ -606,7 +601,17 @@ def process_segment(segment, speaker, parse=None):
     return rows
 
 
-def analyze(input_path, output_filename, parses=None, clean_turns=True):
+def drop_invariant_hosts(df):
+    """drop_invariant_hosts removes every row of an adjective lemma or adverb that is never intensified in df."""
+    if df.empty:
+        return df
+    host = df["Lex_Adj"].where(df["Adv"] == "/", df["Adv"].str.lower())
+    varies = (df["Int"] != "/").groupby(host).transform("any")
+    print(f"Dropped {(~varies).sum()} rows of {host[~varies].nunique()} hosts never intensified")
+    return df[varies].reset_index(drop=True)
+
+
+def analyze(input_path, output_filename, parses=None, clean_turns=True, drop_invariant=True):
     """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
     # no mas, tan
     # Create a list to store data frames
@@ -616,7 +621,7 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True):
         os.remove(re_words)
 
     # Iterate over marked files in the input folder
-    for filename in os.listdir(input_path):
+    for filename in sorted(f for f in os.listdir(input_path) if f.endswith(".txt")):
         # SPEAKER
         speaker = filename[:-4]
         print("Started analyzing:", speaker)
@@ -651,8 +656,7 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True):
                 if parse is not None:
                     # the split can fall inside a token ("..._PUNCT_..."), so map by character offset
                     seg_parse = [
-                        parse[bisect.bisect_right(starts, offset + m.start()) - 1]
-                        for m in re.finditer(r"\S+", segment)
+                        parse[bisect.bisect_right(starts, offset + m.start()) - 1] for m in re.finditer(r"\S+", segment)
                     ]
                 offset += len(segment)
                 seg_rows = process_segment(segment, speaker, seg_parse)
@@ -667,23 +671,10 @@ def analyze(input_path, output_filename, parses=None, clean_turns=True):
         else:
             print(f"No valid rows found in file: {filename}")
 
-    # Concatenate all data frames in the list
-    if data_frames:
-        data = pd.concat(data_frames, ignore_index=True)
-        # Save the DataFrame to a CSV file
-        data.to_csv(os.path.join(input_path, "temp.csv"), index=False)
-        print("Successfully concatenated data frames")
-    else:
-        print("No data frames to concatenate")
-
-        # Create a DataFrame for the current file and append it to the list
-        data_frames.append(pd.DataFrame(rows))  # type: ignore
-
-    # Concatenate all data frames in the list
-    data = pd.concat(data_frames, ignore_index=True)
-
-    # Check if the file exists before trying to delete it
-    os.remove(os.path.join(input_path, "temp.csv"))
+    data = pd.concat(data_frames, ignore_index=True) if data_frames else pd.DataFrame()
+    # hosts with no variation tell nothing about the choice to intensify
+    if drop_invariant:
+        data = drop_invariant_hosts(data)
 
     print("Successfully created data")
     print(f"re- words saved to {re_words}")
@@ -703,9 +694,7 @@ def closest_verb_non_infinitive(row):
     # Find the sentence containing the intensifier
     # Split by periods and track positions
     period_before = phrase.rfind(".", 0, intensifier_pos)
-    sentence_start = (
-        0 if period_before == -1 else period_before + 1
-    )  # +1 to skip the period
+    sentence_start = 0 if period_before == -1 else period_before + 1  # +1 to skip the period
     sentence_end = phrase.find(".", intensifier_pos)
     if sentence_end == -1:
         sentence_end = len(phrase)
@@ -876,9 +865,7 @@ def _quote(name):
 def _sql_values(df):
     # sqlite3 can't bind numpy scalars or NaN
     return [
-        tuple(
-            None if pd.isna(v) else v.item() if hasattr(v, "item") else v for v in row
-        )
+        tuple(None if pd.isna(v) else v.item() if hasattr(v, "item") else v for v in row)
         for row in df.itertuples(index=False)
     ]
 
@@ -893,12 +880,8 @@ def to_sqlite(df, output_filename):
 
     source_id = df.groupby(sources, dropna=False, sort=False).ngroup() + 1
     phrase_id = df.groupby(phrases, dropna=False, sort=False).ngroup() + 1
-    term_codes, term_text = pd.factorize(
-        pd.concat([df[c] for c in terms]), use_na_sentinel=False
-    )
-    term_ids = pd.DataFrame(
-        term_codes.reshape(len(terms), len(df)).T + 1, columns=terms, index=df.index
-    )
+    term_codes, term_text = pd.factorize(pd.concat([df[c] for c in terms]), use_na_sentinel=False)
+    term_ids = pd.DataFrame(term_codes.reshape(len(terms), len(df)).T + 1, columns=terms, index=df.index)
 
     if os.path.exists(output_filename):
         os.remove(output_filename)
@@ -906,9 +889,7 @@ def to_sqlite(df, output_filename):
 
     # untyped columns so ints, floats and text all come back as they went in
     def create(table, cols, data):
-        con.execute(
-            f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, {', '.join(_quote(c) for c in cols)})"
-        )
+        con.execute(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, {', '.join(_quote(c) for c in cols)})")
         con.executemany(
             f"INSERT INTO {table} VALUES ({', '.join('?' * (len(cols) + 1))})",
             _sql_values(data),
@@ -961,36 +942,44 @@ def to_sqlite(df, output_filename):
     con.execute("CREATE INDEX token_source ON token(source_id)")
     for c in ("Int", "Adj_type"):
         if c in terms:
-            con.execute(
-                f"CREATE INDEX {_quote('token_' + c)} ON token({_quote(c + '_id')})"
-            )
+            con.execute(f"CREATE INDEX {_quote('token_' + c)} ON token({_quote(c + '_id')})")
     con.commit()
     con.execute("VACUUM")
     con.close()
     print(f"Saved SQLite database to {output_filename}")
 
 
-if __name__ == "__main__":
-    input = "data/tagged"
-    output = "output/intensifier_data_" + date.today().isoformat() + ".csv"
-    speaker_df = pd.read_excel(speaker_data)
-
-    remove_SPACE(input)  # writes without space back to files
-    df = analyze(input, output)
-
-    # Apply the function to create the new column
-    df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
-    df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
+def write_outputs(df, output, speaker_path):
+    """write_outputs adds Number and Syllable, merges speaker metadata if present, and saves xlsx and sqlite."""
     number_counts = {}
     df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
     df["Syllable"] = df["Adj"].apply(count_syllables)
-    df = merge_speaker_data(speaker_df, df)
+    if os.path.exists(speaker_path):
+        df = merge_speaker_data(pd.read_excel(speaker_path), df)
+    else:
+        print(f"No {speaker_path}, skipping speaker metadata")
 
-    for col in df.select_dtypes(include=[object]).columns:
-        # replaces commas with empty string, can change to sum else if you want
+    for col in df.select_dtypes(include=["object", "string"]).columns:
+        # commas would split cells in tools that re-read the csv naively
         df[col] = df[col].str.replace(",", "", regex=False)
 
     df.to_excel(output[:-4] + ".xlsx", index=False)
     to_sqlite(df, output[:-4] + ".sqlite")
+    return df
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", default="data/tagged", help="folder of TagAnt word_POS_lemma .txt files")
+    parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
+    args = parser.parse_args()
+
+    os.makedirs("output", exist_ok=True)
+    output = "output/intensifier_data_" + date.today().isoformat() + ".csv"
+    remove_SPACE(args.input)  # writes without space back to files
+    df = analyze(args.input, output)
+    df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
+    df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
+    write_outputs(df, output, args.speakers)
 
     print("Make sure to manually check the -ísimo cases!")

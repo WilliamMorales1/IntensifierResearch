@@ -7,16 +7,11 @@ from collections import namedtuple
 from datetime import date
 from multiprocessing import get_context
 
-import pandas as pd
-
 from extract_tagant import (
     analyze,
-    count_syllables,
     intensifier_list,
-    merge_speaker_data,
-    numero,
     speaker_data,
-    to_sqlite,
+    write_outputs,
 )
 
 # the charlm pos model is ~25x slower on CPU
@@ -48,9 +43,7 @@ def tag_word(word):
 
 def tag_doc(doc, skip_chars=()):
     return "\n".join(
-        " ".join(
-            tag_word(w) for t in s.tokens if t.start_char not in skip_chars for w in t.words
-        )
+        " ".join(tag_word(w) for t in s.tokens if t.start_char not in skip_chars for w in t.words)
         for s in doc.sentences
     )
 
@@ -69,11 +62,22 @@ def join_paragraphs(paragraphs):
 
 
 # verbs that take a predicative adjective, so "se puso peor" / "sigue igual" stay ADJ
-predicative_lemmas = {"ser", "estar", "parecer", "poner", "sentir", "ver", "quedar", "volver", "encontrar", "dejar", "hallar", "seguir"}
-clitics = {"me", "te", "se", "nos", "le", "les", "lo", "la", "los", "las"}
-possessives = {
-    p + e for p in ("mí", "tuy", "suy", "nuestr", "vuestr") for e in ("o", "a", "os", "as")
+predicative_lemmas = {
+    "ser",
+    "estar",
+    "parecer",
+    "poner",
+    "sentir",
+    "ver",
+    "quedar",
+    "volver",
+    "encontrar",
+    "dejar",
+    "hallar",
+    "seguir",
 }
+clitics = {"me", "te", "se", "nos", "le", "les", "lo", "la", "los", "las"}
+possessives = {p + e for p in ("mí", "tuy", "suy", "nuestr", "vuestr") for e in ("o", "a", "os", "as")}
 comparatives = {"mejor", "mejores", "peor", "peores", "mayor", "mayores", "menor", "menores"}
 _edge = ("", "PUNCT", "")
 
@@ -134,7 +138,7 @@ def _quantified_noun(tokens, i):
 
 
 def correct_tokens(tokens):
-    """correct_tokens fixes Stanza's closed list of systematic errors found in tagger_comparison.md."""
+    """correct_tokens fixes Stanza's closed list of systematic errors found by hand against TagAnt."""
     out = []
     for i, (text, upos, lemma) in enumerate(tokens):
         low = text.lower()
@@ -371,9 +375,7 @@ def _init_worker():
 
     # one thread per process; extra threads per process made pos 25x slower here
     torch.set_num_threads(1)
-    _nlp = stanza.Pipeline(
-        "es", package=None, processors=processors, download_method=None, verbose=False
-    )
+    _nlp = stanza.Pipeline("es", package=None, processors=processors, download_method=None, verbose=False)
 
 
 def _tag_file(paths):
@@ -417,6 +419,7 @@ if __name__ == "__main__":
     parser.add_argument("--tagged", default="data/stanza_tagged", help="where stanza output goes")
     parser.add_argument("--corrected", default="data/stanza_corrected", help="tags after correct_tokens")
     parser.add_argument("--parsed", default="data/stanza_parsed", help="dependency parse of the corrected tags")
+    parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
     parser.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 
@@ -429,18 +432,6 @@ if __name__ == "__main__":
     # Adj_type, Noun and Verb come from the dependency parse instead of word order
     # stanza tags come from clean_transcripts' cleaned text, and their lines are sentences, not transcript turns
     df = analyze(args.corrected, output, parse_relations(args.parsed), clean_turns=False)
-    number_counts = {}
-    df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
-    df["Syllable"] = df["Adj"].apply(count_syllables)
-    if os.path.exists(speaker_data):
-        df = merge_speaker_data(pd.read_excel(speaker_data), df)
-    else:
-        print(f"No {speaker_data}, skipping speaker metadata")
-
-    for col in df.select_dtypes(include=[object]).columns:
-        df[col] = df[col].str.replace(",", "", regex=False)
-
-    df.to_excel(output[:-4] + ".xlsx", index=False)
-    to_sqlite(df, output[:-4] + ".sqlite")
+    write_outputs(df, output, args.speakers)
 
     print("Make sure to manually check the -ísimo cases!")

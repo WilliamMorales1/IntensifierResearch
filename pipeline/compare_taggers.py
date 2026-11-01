@@ -23,9 +23,7 @@ def read_tags(path):
 
 def align(a, b):
     # stanza splits contractions (del -> de el), so only tokens with equal text are compared
-    sm = difflib.SequenceMatcher(
-        None, [t[0].lower() for t in a], [t[0].lower() for t in b], autojunk=False
-    )
+    sm = difflib.SequenceMatcher(None, [t[0].lower() for t in a], [t[0].lower() for t in b], autojunk=False)
     return [(m.a + k, m.b + k) for m in sm.get_matching_blocks() for k in range(m.size)]
 
 
@@ -58,16 +56,18 @@ def compare(tagant_dir, stanza_dir):
             pos["after_int"] += 1
             ha, hb = host(a[i]), host(b[j])
             if ha != hb:
-                slots.append({
-                    "Speaker": name[:-4],
-                    "Int": a[i - 1][0].lower(),
-                    "Word": a[i][0].lower(),
-                    "TagAnt": f"{a[i][1]}/{a[i][2]}",
-                    "Stanza": f"{b[j][1]}/{b[j][2]}",
-                    "TagAnt_host": ha,
-                    "Stanza_host": hb,
-                    "Context": context(a, i),
-                })
+                slots.append(
+                    {
+                        "Speaker": name[:-4],
+                        "Int": a[i - 1][0].lower(),
+                        "Word": a[i][0].lower(),
+                        "TagAnt": f"{a[i][1]}/{a[i][2]}",
+                        "Stanza": f"{b[j][1]}/{b[j][2]}",
+                        "TagAnt_host": ha,
+                        "Stanza_host": hb,
+                        "Context": context(a, i),
+                    }
+                )
     return pos, pd.DataFrame(slots)
 
 

@@ -29,10 +29,14 @@ def test_line_based(lines, kept):
 @pytest.mark.parametrize(
     ("text", "kept"),
     [
-        ("amiga? bueno ahora vamos a la parte de tu profesión ¿a que te dedicas? ¿en que te gustaría trabajar? en un banco",
-         "amiga? en un banco"),
-        ("¿tienes amigos? ¿como eran tus amigos de infancia? ¿qué diferencia hay entre esos amigos y los de ahora? pues muchos",
-         "pues muchos"),
+        (
+            "amiga? bueno ahora vamos a la parte de tu profesión ¿a que te dedicas? ¿en que te gustaría trabajar? en un banco",
+            "amiga? en un banco",
+        ),
+        (
+            "¿tienes amigos? ¿como eran tus amigos de infancia? ¿qué diferencia hay entre esos amigos y los de ahora? pues muchos",
+            "pues muchos",
+        ),
         ("muy imperativos. si ¿qué más te puedo decir? de mis dos hijos", None),
         ("me dice el profe ¿y usted cultiva papa? le dije claro", None),
         ("le decía ven acá, ven acá ¿tú quieres comprar esta casa? pero no", None),
@@ -54,6 +58,8 @@ def test_tagged_tokens_follow_word_spans():
 def test_inline_keeps_quote_after_finished_sentence_and_long_generic_tu():
     text = "mi abuelo los paró y les dijo. ¿usted quiere que coman? me preguntó"
     assert remove_interviewer(text).split() == text.split()
-    text = ("¿qué comida preparas? mmm y luego procedes pues a amarrarlos si tu no los amarras bien se les entra el agua "
-            "y pues se van a dañar todos los tamales que uno hace con tanto cuidado en la casa.")
+    text = (
+        "¿qué comida preparas? mmm y luego procedes pues a amarrarlos si tu no los amarras bien se les entra el agua "
+        "y pues se van a dañar todos los tamales que uno hace con tanto cuidado en la casa."
+    )
     assert "amarrarlos" in remove_interviewer(text)

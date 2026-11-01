@@ -4,9 +4,11 @@ import pandas as pd
 import pytest
 
 from extract_tagant import (
+    analyze,
     closest_verb_infinitive,
     closest_verb_non_infinitive,
     count_syllables,
+    drop_invariant_hosts,
     get_adj,
     get_int,
     numero,
@@ -14,6 +16,7 @@ from extract_tagant import (
     remove_other_turns,
     strip_speaker_labels,
     to_sqlite,
+    write_outputs,
 )
 
 
@@ -145,20 +148,22 @@ def test_numero_counts_each_speaker_separately():
 
 
 def test_to_sqlite_round_trips(tmp_path):
-    df = pd.DataFrame({
-        "Corpus": ["Medellín", "Medellín", "Quijote"],
-        "Speaker": ["S01", "S01", None],
-        "Phr_tagged": ["es_AUX_ser muy_ADV_muy bueno_ADJ_bueno"] * 2 + ["casa_NOUN_casa bonita_ADJ_bonito"],
-        "Phr": ["es muy bueno"] * 2 + ["casa bonita"],
-        "Double": ["/", "/", None],
-        "Int": ["muy", "muy", "/"],
-        "Adj": ["bueno", "bueno", "bonito"],
-        "Adj_type": ["predicative", "predicative", "attributive"],
-        "Number": ["S01_01", "S01_02", "Quijote_01"],
-        "Syllable": [2, 2, 3],
-        "Age": [34.0, 34.0, None],
-        "Gender": ["mujer", "mujer", None],
-    })
+    df = pd.DataFrame(
+        {
+            "Corpus": ["Medellín", "Medellín", "Quijote"],
+            "Speaker": ["S01", "S01", None],
+            "Phr_tagged": ["es_AUX_ser muy_ADV_muy bueno_ADJ_bueno"] * 2 + ["casa_NOUN_casa bonita_ADJ_bonito"],
+            "Phr": ["es muy bueno"] * 2 + ["casa bonita"],
+            "Double": ["/", "/", None],
+            "Int": ["muy", "muy", "/"],
+            "Adj": ["bueno", "bueno", "bonito"],
+            "Adj_type": ["predicative", "predicative", "attributive"],
+            "Number": ["S01_01", "S01_02", "Quijote_01"],
+            "Syllable": [2, 2, 3],
+            "Age": [34.0, 34.0, None],
+            "Gender": ["mujer", "mujer", None],
+        }
+    )
     path = tmp_path / "out.sqlite"
     to_sqlite(df, path)
     with sqlite3.connect(path) as con:
@@ -265,7 +270,10 @@ def test_remove_other_turns_on_tagged_lines():
         "E_CCONJ_e :_PUNCT_: ¿_PUNCT_¿ y_CCONJ_y cómo_PRON_cómo ?_PUNCT_?",
         "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
     ]
-    assert remove_other_turns("\n".join(lines)).split("\n")[10:] == ["", "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo"]
+    assert remove_other_turns("\n".join(lines)).split("\n")[10:] == [
+        "",
+        "era_AUX_ser muy_ADV_mucho tranquilo_ADJ_tranquilo",
+    ]
 
 
 def test_remove_other_turns_on_tagged_inline_question():
@@ -274,6 +282,74 @@ def test_remove_other_turns_on_tagged_inline_question():
 
 
 def test_remove_other_turns_drops_tagged_third_voice():
-    line = " ".join(["F_PROPN_F :_PUNCT_: -sí_INTJ_-sí"] * 20) + " F_PROPN_F :_PUNCT_: -(tercera_NOUN_-(tercera voz_NOUN_voz )_PUNCT_) sigue_VERB_seguir F_PROPN_F :_PUNCT_: -yo_PRON_-yo"
+    line = (
+        " ".join(["F_PROPN_F :_PUNCT_: -sí_INTJ_-sí"] * 20)
+        + " F_PROPN_F :_PUNCT_: -(tercera_NOUN_-(tercera voz_NOUN_voz )_PUNCT_) sigue_VERB_seguir F_PROPN_F :_PUNCT_: -yo_PRON_-yo"
+    )
     assert "sigue_VERB_seguir" not in remove_other_turns(line)
     assert remove_other_turns(line).endswith("-yo_PRON_-yo")
+
+
+def test_tagant_pipeline_end_to_end(tmp_path):
+    tagged = tmp_path / "tagged"
+    tagged.mkdir()
+    (tagged / "S01.txt").write_text(
+        "la_DET_el casa_NOUN_casa es_AUX_ser muy_ADV_muy bonita_ADJ_bonito ._PUNCT_.\n"
+        "E_PROPN_e :_PUNCT_: ¿_PUNCT_¿ es_AUX_ser usted_PRON_usted feliz_ADJ_feliz ?_PUNCT_?\n",
+        encoding="utf-8",
+    )
+    (tagged / "notes.md").write_text("ignored", encoding="utf-8")
+    speakers = tmp_path / "speakers.xlsx"
+    pd.DataFrame({"Speaker": ["S01"], "Gender": ["mujer"]}).to_excel(speakers, index=False)
+    output = str(tmp_path / "out.csv")
+
+    df = analyze(str(tagged), output)
+    df["Verb"] = df.apply(closest_verb_non_infinitive, axis=1)
+    df["Inf_Verb"] = df.apply(closest_verb_infinitive, axis=1)
+    df = write_outputs(df, output, str(speakers))
+
+    with sqlite3.connect(tmp_path / "out.sqlite") as con:
+        back = pd.read_sql("SELECT * FROM intensifier_data", con)
+    pd.testing.assert_frame_equal(back, df, check_dtype=False)
+    assert (tmp_path / "out.xlsx").exists()
+    row = df.iloc[0]
+    assert len(df) == 1
+    assert (row["Int"], row["Adj"], row["Adj_type"], row["Verb"], row["Gender"]) == (
+        "muy",
+        "bonita",
+        "predicative",
+        "es",
+        "mujer",
+    )
+    assert row["Number"] == "S01_01"
+
+
+def test_analyze_with_no_files(tmp_path):
+    assert analyze(str(tmp_path), str(tmp_path / "out.csv")).empty
+
+
+def test_drop_invariant_hosts_keeps_only_varying_hosts():
+    df = pd.DataFrame(
+        {
+            "Int": ["muy", "/", "/", "/", "muy", "/"],
+            "Adv": ["/", "/", "/", "ya", "Bien", "bien"],
+            "Lex_Adj": ["bonito", "bonito", "feo", "/", "/", "/"],
+        }
+    )
+    assert drop_invariant_hosts(df)[["Lex_Adj", "Adv"]].values.tolist() == [
+        ["bonito", "/"],
+        ["bonito", "/"],
+        ["/", "Bien"],
+        ["/", "bien"],
+    ]
+
+
+def test_analyze_drops_hosts_never_intensified(tmp_path):
+    (tmp_path / "S01.txt").write_text(
+        "es_AUX_ser muy_ADV_muy lindo_ADJ_lindo ._PUNCT_. fue_AUX_ser lindo_ADJ_lindo ._PUNCT_. "
+        "es_AUX_ser alto_ADJ_alto ._PUNCT_.\n",
+        encoding="utf-8",
+    )
+    df = analyze(str(tmp_path), str(tmp_path / "out.csv"))
+    assert df[["Int", "Lex_Adj"]].values.tolist() == [["muy", "lindo"], ["/", "lindo"]]
+    assert len(pd.read_csv(tmp_path / "out.csv")) == 2

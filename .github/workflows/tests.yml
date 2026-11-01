@@ -15,5 +15,7 @@ jobs:
           miniforge-version: latest
           environment-file: environment.yml
           activate-environment: intensifier-research
+      - run: ruff check . && ruff format --check .
+        shell: bash -el {0}
       - run: pytest
         shell: bash -el {0}

@@ -17,3 +17,4 @@ testpaths = ["tests"]
 
 [tool.ruff]
 src = ["pipeline"]
+line-length = 120

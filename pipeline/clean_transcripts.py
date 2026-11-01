@@ -19,7 +19,10 @@ def convert_doc_docx(input_folder, output_folder):
         if filename.endswith(".doc"):
             doc_path = os.path.join(input_folder, filename)
             # Use LibreOffice to convert .doc to .docx
-            subprocess.run(['libreoffice', '--headless', '--convert-to', 'docx', doc_path, '--outdir', output_folder])
+            subprocess.run(
+                ["libreoffice", "--headless", "--convert-to", "docx", doc_path, "--outdir", output_folder], check=True
+            )
+
 
 # turn labels left inside a turn ("J: -pues", "E: ¿cómo?", "LMP: -si", "G.: hasta luego")
 speaker_label = re.compile(r"(?<!\w)[A-ZÁÉÍÓÚÑ]{1,3}\.?\s?:\s*-?\s*")
@@ -39,7 +42,7 @@ def clean_turns(text):
 def clean_data(input_folder, output_folder):
     # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
-    
+
     # Step 1: Convert DOCX files to TXT and process them
     for filename in os.listdir(input_folder):
         if filename.endswith(".docx"):
@@ -52,66 +55,64 @@ def clean_data(input_folder, output_folder):
             # Extract text from paragraphs
             text_content = [paragraph.text for paragraph in doc.paragraphs]
             # Combine paragraphs into a single string with formatted punctuation
-            full_text = "\n".join(text_content).replace('/', ',').replace(',,', ',')
+            full_text = "\n".join(text_content).replace("/", ",").replace(",,", ",")
             # Write the text to a TXT file
             with open(txt_path, "w", encoding="utf-8") as txt_file:
                 txt_file.write(full_text)
 
             # Step 2: Clean the content of the newly created TXT file
-            with open(txt_path, 'r', encoding='utf-8') as infile:
+            with open(txt_path, "r", encoding="utf-8") as infile:
                 content = infile.read()
 
             # Remove text based on conditions
             content = re.sub(
-                r'\(.*?\)\s*'     # parentheses + space
-                r'|[•·]',       # stray punctuation
-                '',
+                r"\(.*?\)\s*"  # parentheses + space
+                r"|[•·]",  # stray punctuation
+                "",
                 content,
-                flags=re.DOTALL
+                flags=re.DOTALL,
             )
 
             BXlist = ["21"]
 
             if any(filename.startswith(num) for num in BXlist):
                 # Extract all sequences that start with A: and end with X:
-                filtered_sequences = (re.findall(r"B:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL))
+                filtered_sequences = re.findall(r"B:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL)
             else:
                 # Extract all sequences that start with B: and end with X:
-                filtered_sequences = (re.findall(r"A:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL))
+                filtered_sequences = re.findall(r"A:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL)
 
             # Join into one string (not line-based anymore, unless you want separators)
             modified_content = clean_turns("\n".join(filtered_sequences))
             modified_content = modified_content.replace(":", "")
-            modified_content = re.sub(r"\bA\s+", '', modified_content)
+            modified_content = re.sub(r"\bA\s+", "", modified_content)
 
             # Write the cleaned content back to the output file
-            with open(txt_path, 'w', encoding='utf-8') as outfile:
+            with open(txt_path, "w", encoding="utf-8") as outfile:
                 outfile.write(modified_content)
 
     print("Successfully cleaned data")
 
 
-
 # NOTE: COMMENT FOR IF YOU DONT WANT TO REMOVE FIRST 350 CHARS
 def remove_text(input_folder, num_words_to_remove):
-    import os
-    
+
     # Ensure the input folder exists
     os.makedirs(input_folder, exist_ok=True)
-    
+
     for filename in os.listdir(input_folder):
         if filename.endswith(".txt"):
             txt_path = os.path.join(input_folder, filename)
 
-            with open(txt_path, 'r', encoding='utf-8') as infile:
+            with open(txt_path, "r", encoding="utf-8") as infile:
                 content = infile.read()
 
             word_count = 0
             result_lines = []
-            
+
             for line in content.splitlines(keepends=True):  # keep \n at end
                 words = line.split()
-                
+
                 if word_count < num_words_to_remove:
                     # skip words until we’ve removed enough
                     remaining = []
@@ -124,13 +125,14 @@ def remove_text(input_folder, num_words_to_remove):
                         result_lines.append(" ".join(remaining) + ("\n" if line.endswith("\n") else ""))
                 else:
                     result_lines.append(line)
-            
+
             final_content = "".join(result_lines)
 
-            with open(txt_path, 'w', encoding='utf-8') as outfile:
+            with open(txt_path, "w", encoding="utf-8") as outfile:
                 outfile.write(final_content)
 
     print(f"Successfully deleted {num_words_to_remove} words from each file")
+
 
 if __name__ == "__main__":
     clean_data("data/original", "data/text")
