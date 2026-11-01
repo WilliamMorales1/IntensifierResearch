@@ -98,7 +98,9 @@ fillers = {
     "umm",
     "ehm",
 }
-discourse_adjs = ("bueno", "claro", "exacto", "listo")
+discourse_adjs = ("bueno", "claro", "exacto", "listo", "cierto")
+# hues that "claro" can modify ("moreno claro") even when the tagger calls them NOUN
+colors = ["moreno", "morena", "azul", "verde", "rojo", "rosado", "café", "gris", "amarillo", "marrón", "morado"]
 # Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN or VERB
 dialect_adjs = {"chéere": "chévere", "chevre": "chévere", "chevere": "chévere", "conchudo": "conchudo"}
 # nouns after muy that are not used as adjectives ("muy falta de", "muy toma trago"), or are cut-off words
@@ -171,6 +173,28 @@ def _tag_question(tokens, i):
     if nxt[0] != "?":
         return False
     return prev[0] == "¿" or (prev[0].lower() == "no" and i > 1 and tokens[i - 2][0] == "¿")
+
+
+def _discourse_tail(tokens, i):
+    # "se lo comen claro", "tú la conoces cierto ?", "estudiar claro que" vs "es cierto", "tengo claro", "moreno claro"
+    prev, nxt, _ = _around(tokens, i)
+    if nxt[1] != "PUNCT" and nxt[0].lower() not in ("que", "está", "pues"):
+        return False
+    low = prev[0].lower()
+    return not (
+        prev[1] in ("AUX", "ADJ", "DET", "ADP", "PUNCT")
+        or prev[2] in predicative_lemmas | {"tener", "hablar"}
+        or low in intensifier_list + ["lo", "tan", "más", "mas", "por", "poco"] + colors
+        or low.endswith("mente")
+        # "un cambio claro ?"
+        or prev[1] == "NOUN" and i > 1 and tokens[i - 2][0].lower() in ("un", "una")
+    )
+
+
+def _focus_quantifier(tokens, i):
+    # "puro barro", "solo pescado frito" (nothing but, only) vs "aire puro", "una sola casa", "muy solo"
+    prev, nxt, _ = _around(tokens, i)
+    return nxt[1] == "NOUN" and prev[1] not in ("DET", "ADJ", "NUM") and prev[0].lower() not in intensifier_list
 
 
 def _quantified_noun(tokens, i):
@@ -256,7 +280,8 @@ def correct_tokens(tokens):
             upos = "ADV"
         elif upos == "ADJ" and (
             (low in discourse_adjs and not after_int and _discourse_slot(tokens, i))
-            or (low in (*discourse_adjs, "cierto") and _tag_question(tokens, i))
+            or (low in discourse_adjs and _tag_question(tokens, i))
+            or (low in ("claro", "cierto") and _discourse_tail(tokens, i))
         ):
             upos = "INTJ"
         elif upos == "ADJ" and low in ("mejor", "peor") and _adverbial_comparative(tokens, i):
@@ -265,6 +290,8 @@ def correct_tokens(tokens):
             upos, lemma = "VERB", "decir"
         elif upos == "ADJ" and low == "igual" and _adverbial_igual(tokens, i):
             upos = "ADV"
+        elif upos == "ADJ" and re.fullmatch(r"(pur|sol)[oa]s?", low) and _focus_quantifier(tokens, i):
+            upos = "DET" if low.startswith("pur") else "ADV"
         elif upos == "ADJ" and low in possessives:
             upos = "DET"
         elif upos == "ADJ" and _quantified_noun(tokens, i):

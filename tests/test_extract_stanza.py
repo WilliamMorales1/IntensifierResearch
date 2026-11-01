@@ -175,6 +175,18 @@ def test_join_paragraphs_ends_turns_with_period():
         ("cambio_NOUN_cambio total_ADJ_total ,_PUNCT_,", "cambio_NOUN_cambio total_ADJ_total ,_PUNCT_,"),
         ("pero_CCONJ_pero seguro_ADJ_seguro que_SCONJ_que", "pero_CCONJ_pero seguro_ADV_seguro que_SCONJ_que"),
         ("estoy_AUX_estar seguro_ADJ_seguro que_SCONJ_que", "estoy_AUX_estar seguro_ADJ_seguro que_SCONJ_que"),
+        ("comen_VERB_comer claro_ADJ_claro ._PUNCT_.", "comen_VERB_comer claro_INTJ_claro ._PUNCT_."),
+        ("estudiar_VERB_estudiar claro_ADJ_claro que_SCONJ_que", "estudiar_VERB_estudiar claro_INTJ_claro que_SCONJ_que"),
+        ("conoces_VERB_conocer cierto_ADJ_cierto ?_PUNCT_?", "conoces_VERB_conocer cierto_INTJ_cierto ?_PUNCT_?"),
+        ("tengo_VERB_tener claro_ADJ_claro ._PUNCT_.", "tengo_VERB_tener claro_ADJ_claro ._PUNCT_."),
+        ("relativamente_ADV_relativamente claro_ADJ_claro ._PUNCT_.", "relativamente_ADV_relativamente claro_ADJ_claro ._PUNCT_."),
+        ("un_DET_uno cambio_NOUN_cambio claro_ADJ_claro ?_PUNCT_?", "un_DET_uno cambio_NOUN_cambio claro_ADJ_claro ?_PUNCT_?"),
+        ("moreno_NOUN_moreno claro_ADJ_claro ,_PUNCT_,", "moreno_NOUN_moreno claro_ADJ_claro ,_PUNCT_,"),
+        (",_PUNCT_, cierto_ADJ_cierto ._PUNCT_.", ",_PUNCT_, cierto_INTJ_cierto ._PUNCT_."),
+        ("era_AUX_ser puro_ADJ_puro barro_NOUN_barro", "era_AUX_ser puro_DET_puro barro_NOUN_barro"),
+        ("aire_NOUN_aire puro_ADJ_puro", "aire_NOUN_aire puro_ADJ_puro"),
+        ("comiendo_VERB_comer solo_ADJ_solo pescado_NOUN_pescado", "comiendo_VERB_comer solo_ADV_solo pescado_NOUN_pescado"),
+        ("una_DET_uno sola_ADJ_solo casa_NOUN_casa", "una_DET_uno sola_ADJ_solo casa_NOUN_casa"),
     ],
 )
 def test_correct_line(line, fixed):
