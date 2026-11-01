@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "intensifier-research"
 version = "0.1.0"
@@ -10,6 +14,16 @@ dependencies = [
     "python-docx>=1.1",
     "stanza>=1.10",
 ]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+# Scripts run from the repo, nothing to install; the empty package only lets pip pull the dependencies.
+[tool.setuptools]
+packages = []
+
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["pipeline"]

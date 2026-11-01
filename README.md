@@ -13,7 +13,46 @@ python pipeline/clean_transcripts.py   # data/original/*.docx -> data/text/*.txt
 python pipeline/extract_stanza.py      # data/text -> output/intensifier_data_stanza_<date>.sqlite
 ```
 
-Needs [Miniforge](https://github.com/conda-forge/miniforge) (conda), plus [LibreOffice](https://www.libreoffice.org/) for old `.doc` transcripts. The first Stanza run downloads the Spanish models (~130 MB).
+Needs Python 3.10+ and [LibreOffice](https://www.libreoffice.org/) for old `.doc` transcripts. The first Stanza run downloads the Spanish models (~130 MB).
+
+## Setup
+
+Pick one. Nothing is installed as a package; the scripts run from the repo root.
+
+**conda** ([Miniforge](https://github.com/conda-forge/miniforge)), what CI uses:
+
+```fish
+conda env create -f environment.yml
+conda activate intensifier-research
+```
+
+**uv**: `uv sync` builds `.venv` from `uv.lock`, dev tools (pytest, ruff) included. Prefix commands with `uv run` or activate the env.
+
+```fish
+uv sync
+uv run python -m pytest -q
+uv run python pipeline/extract_stanza.py
+```
+
+**venv + pip** (pip 25.1+ for `--group`):
+
+```fish
+python -m venv .venv
+source .venv/bin/activate.fish     # bash/zsh: source .venv/bin/activate
+pip install . --group dev          # drop --group dev to skip pytest and ruff
+```
+
+Stanza pulls in PyTorch, whose default Linux wheel bundles CUDA (~3 GB). On a machine without an NVIDIA GPU, install the CPU wheel (~200 MB) first:
+
+```fish
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # then: pip install . --group dev
+# uv equivalent, skipping the lockfile:
+uv venv
+uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+uv pip install -r pyproject.toml --group dev
+```
+
+After editing dependencies, update both `pyproject.toml` and `environment.yml`, then run `uv lock`.
 
 ## Inputs
 

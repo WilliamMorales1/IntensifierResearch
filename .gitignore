@@ -3,3 +3,6 @@ output/
 __pycache__/
 .pytest_cache/
 AGENTS.md
+.venv/
+*.egg-info/
+build/
