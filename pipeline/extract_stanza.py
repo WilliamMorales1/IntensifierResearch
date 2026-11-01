@@ -124,7 +124,7 @@ colors = ["moreno", "morena", "azul", "verde", "rojo", "rosado", "café", "gris"
 # Colombian adjectives the tagger, trained on standard Spanish, often calls NOUN or VERB
 dialect_adjs = {"chéere": "chévere", "chevre": "chévere", "chevere": "chévere", "conchudo": "conchudo"}
 # nouns after muy that are not used as adjectives ("muy falta de", "muy toma trago"), or are cut-off words
-muy_nouns = {"gente", "cosas", "falta", "toma", "pulpa", "maleza", "masa", "carga", "calma", "dema", "ente"}
+muy_nouns = {"gente", "cosas", "parte", "falta", "toma", "pulpa", "maleza", "masa", "carga", "calma", "dema", "ente"}
 # second halves of compound nouns the tagger reads as noun + adjective
 compound_nouns = {
     ("medio", "ambiente"): "NOUN",

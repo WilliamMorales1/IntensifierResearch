@@ -205,6 +205,7 @@ def test_join_paragraphs_ends_turns_with_period():
         ("está_AUX_estar alrededol_ADJ_alrededol de_ADP_de", "está_AUX_estar alrededol_ADV_alrededor de_ADP_de"),
         ("muy_ADV_mucho complicao_ADJ_complicao", "muy_ADV_mucho complicao_ADJ_complicado"),
         ("muy_ADV_mucho alto_ADJ_alto", "muy_ADV_mucho alto_ADJ_alto"),
+        ("muy_ADV_mucho parte_NOUN_parte de_ADP_de", "muy_ADV_mucho parte_NOUN_parte de_ADP_de"),
     ],
 )
 def test_correct_line(line, fixed):
