@@ -642,3 +642,26 @@ def test_z_adjectives_are_hosts(tagged, expected):
 )
 def test_cut_z_lemmas_are_not_hosts(tagged):
     assert process_segment(tagged, "S01") == []
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "en_ADP_en puerto_NOUN_puerto rico_ADJ_rico",
+        "lo_ADV_lo tumbaron_VERB_tumbar de_ADP_de nuevo_ADJ_nuevo",
+        "lo_PRON_él hemos_AUX_haber literalmente_ADV_literalmente heredado_ADJ_heredado",
+        "han_AUX_haber metido_ADJ_metido",
+    ],
+)
+def test_retag_non_adjectives(segment):
+    assert [r for r in process_segment(segment, "S01") if r["Adj"] != "/"] == []
+
+
+def test_de_nuevo_ingreso_keeps_adjective():
+    rows = process_segment("estudiantes_NOUN_estudiante de_ADP_de nuevo_ADJ_nuevo ingreso_NOUN_ingreso", "S01")
+    assert [r["Adj"] for r in rows] == ["nuevo"]
+
+
+def test_de_nuevo_is_not_graded():
+    rows = process_segment("lo_PRON_él hizo_VERB_hacer muy_ADV_mucho de_ADP_de nuevo_ADJ_nuevo", "S01")
+    assert all(r["Int"] == "/" for r in rows)

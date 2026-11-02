@@ -109,6 +109,7 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | attached *re-* (*retemprano*, *retenaz*; 2) | host *temprano*, Int `re`, only for hosts in `re_prefixed` (*temprano*, *tenaz*): most *re-* adjectives are lexical (*reunido*, *relleno*, *retirado*), and *rete-* + X cannot be told from *re-* + *te*X |
 | *ahorita* as ADJ/NOUN/VERB/PRON | ADV |
 | *poquito* | ADV after an intensifier or verb (*muy poquito*); DET before a noun and for *poquita/os/as*; NOUN (*un poquito*) kept |
+| *puerto rico* (47 rows), *de nuevo* (31; *de nuevo ingreso* kept), participle after *haber* (*lo hemos literalmente heredado*; 3) tagged ADJ (2026-11-02, from the gold check) | PROPN; ADV in `non_gradable` (bare rows only); VERB |
 | lateralized adverb hosts (*celca*, *talde*) | `Adv` uses the r lemma `pr` gave it |
 | hosts never intensified anywhere in the corpus (*ya*, *entonces*) | all rows dropped with `--drop-invariant`; off by default |
 
@@ -169,6 +170,7 @@ Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 
 
 | Parse | Adj_type | Noun |
 | --- | --- | --- |
+| `amod` of a personal or demonstrative pronoun or *todo* (*veía eso todo raro*, *yo aquí solitas*, *todo mojado*) | predicative (secondary predicate) | `/` |
 | `amod` | attributive | head, if NOUN/PROPN |
 | `cop` child | predicative | nearest `nsubj` |
 | `xcomp` (*se puso feo*, *lo veo bonito*) | predicative | head verb's `obj`, else `nsubj` |
@@ -177,9 +179,9 @@ Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 
 | `acl` of a NOUN without `cop` (*empresa llamada*) | attributive | head |
 | head is a filler (*mhm*, *eeh*) or anything else | ambiguous | |
 
-Verb is the first VERB, `cop` child or AUX up the head chain, for adverb rows too. Noun and Verb must appear in `Phr`, else `/`; an attributive row whose noun, or `amod`/`acl` head of any kind (*algo muy bueno* keeps its pronoun), is outside `Phr` becomes ambiguous (head check 2026-11-02: 363 rows, 73 intensified, mostly one-word segments like *muy normal*, *bien dura .*; ambiguous adjective rows 17.9% -> 18.8%).
+Verb is the first VERB, `cop` child or AUX up the head chain, for adverb rows too. Noun and Verb must appear in `Phr`, else `/`; an attributive row whose noun, or `amod`/`acl` head of any kind (*algo muy bueno* keeps its pronoun), is outside `Phr` becomes ambiguous (head check 2026-11-02: 363 rows, 73 intensified, mostly one-word segments like *muy normal*, *bien dura .*; ambiguous adjective rows 17.9% -> 18.8%). The pronoun rule (2026-11-02) skips emphatic *mismo* (*yo mismo*), neuter *lo* (*en lo personal*) and partitive *de esas* (*una amistad de esas tan sinceras*), and leaves *uno* (numeral or generic) and indefinites (*algo malo*, *nada grave*) attributive; 174 rows attributive -> predicative (16 intensified); hand check of 40: 36 right, 2 regressions (*todo eso nuevo que*, *en las malas*), 2 misparses wrong either way.
 
 ## Known gaps
 
-- Depictives parsed as `amod` (*tuvimos el hijo soltera*) and standalone comments attached to the nearest noun (*me da alegría, muy bueno*) get the wrong Adj_type.
+- Depictives parsed as `amod` on a noun (*tuvimos el hijo soltera*, *tiene la nevera llena*, *con las piernas levantadas*) and standalone comments attached to the nearest noun (*me da alegría, muy bueno*) get the wrong Adj_type.
 - Unlabeled interviewer questions and backchannels (*mhm*, *qué bueno*) stay in the text.

@@ -736,3 +736,42 @@ def test_worker_pool_fails_instead_of_respawning(monkeypatch):
         pytest.raises(RuntimeError, match="failed"),
     ):
         list(pool.imap_unordered(annotate._tag_file, [("in.txt", "out.txt")]))
+
+
+def test_amod_on_personal_pronoun_is_predicative(tmp_path):
+    # "veía eso todo raro": the parser hangs the secondary predicate on the pronoun; yo mismo and algo raro stay attributive
+    (tmp_path / "S01.conllu").write_text(
+        conllu(
+            ("veía", "VERB", "ver", 0, "root"),
+            ("eso", "PRON", "ese", 1, "obj"),
+            ("raro", "ADJ", "raro", 2, "amod"),
+            ("yo", "PRON", "yo", 1, "nsubj"),
+            ("mismo", "ADJ", "mismo", 4, "amod"),
+            ("algo", "PRON", "algo", 1, "obj"),
+            ("raro", "ADJ", "raro", 6, "amod"),
+        ),
+        encoding="utf-8",
+    )
+    (sent,) = read_conllu(tmp_path / "S01.conllu")
+    rel = sentence_relations(sent)
+    assert (rel[2].adj_type, rel[2].noun, rel[2].head) == ("predicative", "/", "eso")
+    assert rel[4].adj_type == "attributive"
+    assert rel[6].adj_type == "attributive"
+
+
+def test_amod_on_lo_or_partitive_pronoun_stays_attributive(tmp_path):
+    (tmp_path / "S01.conllu").write_text(
+        conllu(
+            ("en", "ADP", "en", 2, "case"),
+            ("lo", "PRON", "él", 0, "root"),
+            ("personal", "ADJ", "personal", 2, "amod"),
+            ("de", "ADP", "de", 5, "case"),
+            ("esas", "PRON", "ese", 2, "nmod"),
+            ("sinceras", "ADJ", "sincero", 5, "amod"),
+        ),
+        encoding="utf-8",
+    )
+    (sent,) = read_conllu(tmp_path / "S01.conllu")
+    rel = sentence_relations(sent)
+    assert rel[2].adj_type == "attributive"
+    assert rel[5].adj_type == "attributive"

@@ -139,6 +139,7 @@ non_gradable = {
     "luego",
     "anoche",
     "acerca",
+    "nuevo",
     "primero",
     "solo",
     "sólo",
@@ -518,19 +519,49 @@ def join_splits(words, parse=None):
     return out, (out_parse if parse is not None else None)
 
 
+# perfect participles after haber are invariable masculine singular
+perfect_participle = re.compile(r"\w+([ai]do|cho|sto|rto|crito|elto|ierto)")
+
+
+def _after_haber(words, i):
+    # "lo hemos literalmente heredado": one adverb may sit between
+    for j in (i - 1, i - 2):
+        if j < 0:
+            return False
+        parts = words[j].split("_")
+        if len(parts) == 3 and parts[1] == "AUX" and parts[2] == "haber":
+            return True
+        if len(parts) != 3 or parts[1] != "ADV":
+            return False
+    return False
+
+
 def retag(words):
-    """retag fixes host tags the tagger gets wrong: ahorita/lejísimos ADV, poquito ADV or DET."""
+    """retag fixes host tags the tagger gets wrong: ahorita/lejísimos/de nuevo ADV, poquito ADV or DET, puerto rico PROPN, participles after haber VERB."""
     out = []
     for i, word in enumerate(words):
         parts = word.split("_")
         if len(parts) == 3:
             text, pos, lemma = parts
             low = text.lower()
+            before = words[i - 1].split("_") if i > 0 else []
+            after = words[i + 1].split("_") if i + 1 < len(words) else []
             if (low in always_adverbs or isimo_adverb.fullmatch(low)) and pos != "ADV":
                 pos = "ADV"
+            elif low == "rico" and pos == "ADJ" and before and before[0].lower() == "puerto":
+                pos = "PROPN"
+            # de nuevo = again; los estudiantes de nuevo ingreso keeps the ADJ
+            elif (
+                low == "nuevo"
+                and pos == "ADJ"
+                and before
+                and before[0].lower() == "de"
+                and not (len(after) == 3 and after[1] in ("NOUN", "PROPN"))
+            ):
+                pos = "ADV"
+            elif pos == "ADJ" and perfect_participle.fullmatch(low) and _after_haber(words, i):
+                pos = "VERB"
             elif re.fullmatch(r"poquit[oa]s?", low) and pos in ("ADJ", "NOUN"):
-                before = words[i - 1].split("_") if i > 0 else []
-                after = words[i + 1].split("_") if i + 1 < len(words) else []
                 # muy poquito, como poquito: like muy poco; un poquito de stays NOUN;
                 # muy poquitas veces, muy poquito tiempo are quantifiers like muy pocas veces
                 quantifier = low != "poquito" or (len(after) == 3 and after[1] in ("NOUN", "PROPN"))
@@ -632,8 +663,8 @@ def process_segment(segment, speaker, parse=None, degree=None):
                     noun = "/"
                     if attributive == "attributive":
                         attributive = "ambiguous"
-                # "ahora pues muy revolcada": the amod head, even a pronoun (algo muy bueno), too
-                if attributive == "attributive" and parse[i].head.lower() not in visible:
+                # "ahora pues muy revolcada": the amod head, even a pronoun (algo muy bueno, eso raro), too
+                if parse[i].head != "/" and parse[i].head.lower() not in visible:
                     attributive = "ambiguous"
             if not re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑ/]+$", noun):
                 attributive = "ambiguous"

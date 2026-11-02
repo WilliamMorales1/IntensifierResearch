@@ -614,6 +614,9 @@ def governing_verb(sent, w):
 
 copular_verbs = {"ser", "estar", "parecer", "quedar", "sentir"}
 
+# Stanza lemmas: ellos/ella -> él, usted -> tú, eso/esa -> ese
+depictive_pronouns = {"yo", "tú", "él", "ese", "este", "aquel", "aquél", "todo"}
+
 
 def adjective_relation(sent, w):
     # "bonita y grande": the second conjunct shares the first one's relation; so do lists and
@@ -625,6 +628,19 @@ def adjective_relation(sent, w):
     # "mhm, muy joven": the parser takes a filler for the noun
     if head is not None and head.text.lower() in fillers:
         return "ambiguous", "/", "/"
+    # "veía eso todo raro", "yo aquí solitas": these pronouns take no attributive adjective, so it
+    # is a secondary predicate; indefinites (algo malo), emphatic mismo, neuter lo (lo personal)
+    # and partitive de esas (una amistad de esas tan sinceras) stay attributive
+    if (
+        rel == "amod"
+        and head is not None
+        and head.upos == "PRON"
+        and head.lemma.lower() in depictive_pronouns
+        and head.text.lower() != "lo"
+        and w.lemma.lower() != "mismo"
+        and not (head.id > 1 and sent[head.id - 2].text.lower() == "de")
+    ):
+        return "predicative", "/", head.text
     if rel == "amod" and head is not None:
         return "attributive", _noun([head], w), head.text
     if _children(sent, w, "cop"):
