@@ -334,14 +334,14 @@ parsed = (
 def test_sentence_relations(tmp_path):
     (tmp_path / "S01.conllu").write_text(parsed, encoding="utf-8")
     first, second, third = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
-    assert first[4] == ("predicative", "casa", "es", "ser")
-    assert first[6] == ("predicative", "casa", "es", "ser")
-    assert first[3] == ("ambiguous", "/", "es", "ser")
+    assert first[4] == ("predicative", "casa", "es", "ser", "/")
+    assert first[6] == ("predicative", "casa", "es", "ser", "/")
+    assert first[3] == ("ambiguous", "/", "es", "ser", "/")
     assert first[0] is None
     # object is a pronoun, so no noun
-    assert second[3] == ("predicative", "/", "veo", "ver")
-    assert third[4] == ("attributive", "casas", "vivo", "vivir")
-    assert third[6][2:] == ("vivo", "vivir")
+    assert second[3] == ("predicative", "/", "veo", "ver", "/")
+    assert third[4] == ("attributive", "casas", "vivo", "vivir", "/")
+    assert third[6][2:4] == ("vivo", "vivir")
 
 
 def test_noun_parsed_before_correction_gets_relation():
@@ -352,7 +352,7 @@ def test_noun_parsed_before_correction_gets_relation():
         Dep(3, "muy", "ADV", "mucho", 4, "advmod"),
         Dep(4, "amigo", "NOUN", "amigo", 0, "root"),
     ]
-    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser")
+    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser", "/")
 
 
 def test_verb_parsed_before_correction_is_not_its_own_verb():
@@ -362,7 +362,7 @@ def test_verb_parsed_before_correction_is_not_its_own_verb():
         Dep(2, "muy", "ADV", "mucho", 3, "advmod"),
         Dep(3, "chéere", "VERB", "chévere", 0, "root"),
     ]
-    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser")
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser", "/")
 
 
 def test_adverb_parsed_before_correction_gets_relation():
@@ -374,7 +374,7 @@ def test_adverb_parsed_before_correction_gets_relation():
         Dep(4, "muy", "ADV", "mucho", 5, "advmod"),
         Dep(5, "chevre", "ADV", "chévere", 3, "advmod"),
     ]
-    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer")
+    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer", "/")
 
 
 def test_predicative_subject_is_nearest(tmp_path):
@@ -390,7 +390,7 @@ def test_predicative_subject_is_nearest(tmp_path):
         encoding="utf-8",
     )
     (sent,) = read_conllu(tmp_path / "S01.conllu")
-    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser")
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser", "/")
 
 
 def test_adjective_under_copular_verb_is_predicative(tmp_path):
@@ -411,7 +411,7 @@ def test_adjective_under_copular_verb_is_predicative(tmp_path):
         encoding="utf-8",
     )
     first, second = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
-    assert first[3] == ("predicative", "comida", "queda", "quedar")
+    assert first[3] == ("predicative", "comida", "queda", "quedar", "/")
     assert second[3].adj_type == "ambiguous"
 
 
@@ -582,3 +582,35 @@ def test_parse_file_empty_text_writes_empty_parse(tmp_path):
     assert es._parse_file((str(src), str(dst))) == "short.txt"
     assert dst.read_text(encoding="utf-8") == ""
     assert es.read_conllu(str(dst)) == []
+
+
+def test_negation_scope():
+    # no es tan bueno ; no me parece muy bonito ; no muy bueno ; ya no está , y es bonito
+    sents = [
+        [
+            Dep(1, "no", "ADV", "no", 4, "advmod"),
+            Dep(2, "es", "AUX", "ser", 4, "cop"),
+            Dep(3, "tan", "ADV", "tan", 4, "advmod"),
+            Dep(4, "bueno", "ADJ", "bueno", 0, "root"),
+        ],
+        [
+            Dep(1, "no", "ADV", "no", 3, "advmod"),
+            Dep(2, "me", "PRON", "yo", 3, "iobj"),
+            Dep(3, "parece", "VERB", "parecer", 0, "root"),
+            Dep(4, "muy", "ADV", "mucho", 5, "advmod"),
+            Dep(5, "bonito", "ADJ", "bonito", 3, "xcomp"),
+        ],
+        [
+            Dep(1, "no", "ADV", "no", 2, "advmod"),
+            Dep(2, "muy", "ADV", "mucho", 3, "advmod"),
+            Dep(3, "bueno", "ADJ", "bueno", 0, "root"),
+        ],
+        [
+            Dep(1, "no", "ADV", "no", 2, "advmod"),
+            Dep(2, "está", "VERB", "estar", 0, "root"),
+            Dep(3, "y", "CCONJ", "y", 5, "cc"),
+            Dep(4, "es", "AUX", "ser", 5, "cop"),
+            Dep(5, "bonito", "ADJ", "bonito", 2, "conj"),
+        ],
+    ]
+    assert [sentence_relations(s)[-1].negation for s in sents] == ["no", "no", "no", "/"]

@@ -11,6 +11,7 @@ import dialects as dialect_rules
 from extract import (
     analyze,
     intensifier_list,
+    negators,
     speaker_data,
     write_outputs,
 )
@@ -538,7 +539,7 @@ def parse_folder(input_folder, output_folder, workers):
 
 
 Dep = namedtuple("Dep", "id text upos lemma head deprel")
-Relations = namedtuple("Relations", "adj_type noun verb inf_verb")
+Relations = namedtuple("Relations", "adj_type noun verb inf_verb negation")
 
 
 def read_conllu(path):
@@ -623,6 +624,23 @@ def adjective_relation(sent, w):
     return "ambiguous", "/"
 
 
+def negation(sent, w):
+    """negation returns the negator before w in its clause (no es tan bueno, no me parece muy bonito), or "/"."""
+    # no muy bueno: the parser can hang the negator on the intensifier
+    heads = {w.id} | {c.id for c in _children(sent, w, "advmod")}
+    x = w
+    while x is not None:
+        for c in sent:
+            if c.head in heads and c.id < w.id and c.text.lower() in negators:
+                return c.text.lower()
+        # the first verb or predicate up the chain closes the clause
+        if (x is not w and x.upos in ("VERB", "AUX")) or _children(sent, x, "cop"):
+            break
+        x = _head(sent, x)
+        heads = {x.id} if x is not None else set()
+    return "/"
+
+
 def sentence_relations(sent):
     out = []
     for w in sent:
@@ -633,7 +651,9 @@ def sentence_relations(sent):
         # ADV too, since correct_tokens can make a parsed ADV an ADJ ("muy chevre", "jugosísimo")
         adj_type, noun = adjective_relation(sent, w)
         verb = governing_verb(sent, w)
-        out.append(Relations(adj_type, noun, verb.text if verb else "/", verb.lemma if verb else "/"))
+        out.append(
+            Relations(adj_type, noun, verb.text if verb else "/", verb.lemma if verb else "/", negation(sent, w))
+        )
     return out
 
 

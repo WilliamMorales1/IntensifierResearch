@@ -100,7 +100,47 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *ahorita* as ADJ/NOUN/VERB/PRON | ADV |
 | *poquito* | ADV after an intensifier or verb (*muy poquito*); DET before a noun and for *poquita/os/as*; NOUN (*un poquito*) kept |
 | lateralized adverb hosts (*celca*, *talde*) | `Adv` uses the r lemma `pr` gave it |
-| hosts never intensified anywhere in the corpus (*ya*, *entonces*, *más*) | all rows dropped with `--drop-invariant`; off by default |
+| hosts never intensified anywhere in the corpus (*ya*, *entonces*) | all rows dropped with `--drop-invariant`; off by default |
+
+### Intensifier types and the envelope of variation
+
+`Int_type` follows the scalar taxonomy of Quirk et al. (1985:589-590) as operationalized by Stratton & Sundquist (2022:388-389) and Stratton (2020): amplifiers are **maximizers** (upper extreme of the scale) or **boosters** (high point on the scale); downtoners are **approximators**, **compromisers**, **diminishers** or **minimizers**. **Emphasizers** are not scalar and "did not count as an instance of intensification" (Stratton & Sundquist 2022:395); their rows keep `Int` but should be counted as unintensified.
+
+| Int_type | Int |
+| --- | --- |
+| maximizer | *absolutamente, completamente, totalmente, plenamente, extremadamente, sumamente* |
+| booster | *muy, bien, mucho, harto, bastante, demasiado, súper, re-, archi-, -ísimo, realmente, verdaderamente, increíblemente, tan*, exclamative *más* |
+| approximator | *casi* |
+| compromiser | *más o menos* (Quirk's *more or less*; Norwegian *mer eller mindre* is a downtoner in Stratton & Sundquist 2022:391) |
+| emphasizer | *especialmente, estrictamente* (like Norwegian *særlig* 'particularly') |
+
+Following Stratton & Sundquist (2022:395), who follow Ito & Tagliamonte (2003) and D'Arcy (2015:459), comparative and superlative tokens, *as...as* comparisons, adjectives after 'how' and fossilized collocations are outside the envelope of variation, so their rows are dropped. Negative contexts, which they also drop, are kept and marked in `Negation` instead. *So* + adjective + *that* result clauses are dropped too, after Bulgin et al. (2008:103), since *so* there marks a result, not intensification (*that movie was so boring that I fell asleep*). Brown & Cortés-Torres (2013) and Orozco, Morales & Valenzuela (2026) left *tan* out entirely; here only its non-intensifying uses go. `degree_types` labels each *tan/más/menos* before a host on the whole file, so a result clause past a comma (*tan descarado , que*) is still seen. Counts are tokens on the 310-transcript corpus (2026-11-01).
+
+| Case | Handling |
+| --- | --- |
+| *tan* + host (*es tan sencilla*, *¡ay tan guapa!*, *qué muchacho tan simpático*, *el dolor tan grande que uno tiene*: relative *que* is PRON; 692) | Int *tan*, booster (Stratton & Sundquist's *så syk* 'so sick') |
+| *tan* X *como* (equality: *no es tan grande como este*, *tan bueno , como lo era*; 67) | row dropped; *como que* is a filler and stays |
+| *tan* X *que* (result: *son tan atrevidos que*, *tan descarado , que hasta*; *tan* X *como para*; 62) | row dropped when the next word after any punctuation is SCONJ *que*; kept after exclamative *qué* (*¡qué profesor tan malo! , que ...*). Hand check of 40: ~33 real result clauses, the rest exclamatives or comparatives |
+| *qué/cuán tan* X (= how: *no sé qué tan buenos*; 13) | row dropped, like Norwegian *hvor gammel*; clause-initial *¡ay, qué tan lindo!* is exclamative and kept |
+| *tan solo/sólo/pronto/siquiera* (14) | row dropped |
+| negation (*no es tan bueno*, *no muy bueno*, *no me parece muy bonito*, *nunca fue muy*, *ni tan pobres*) | row kept, negator in `Negation`. Stratton & Sundquist (2022:395) drop negative contexts because negation "alters the semantic-pragmatic thrust of intensification"; marking them lets an analysis do the same or model them. From the parse: a *no/nunca/jamás/tampoco/ni* before the host hanging on the host, its intensifier, or a head up the chain through the first verb or predicate, and visible in `Phr`; without a parse, any earlier negator in the segment. 4,256 rows (511 intensified: *no* 454, *ni* 39, *nunca* 9, *tampoco* 9). Hand check of 25 negated intensified rows: ~21 right; errors are discourse *no* (*no que era muy raro*) and long run-on segments |
+| *más/menos* X (*más grande*, *más caro que*, *mucho más*, *un poco más*, *menos favorecidas*; 2,290) | comparative, row dropped |
+| *el/lo/mi* (N) *más/menos* X (*lo más importante*, *el momento más feliz*; 566) | superlative, row dropped |
+| exclamative *¡qué* N *más* X*!* (*¡qué casa más bonita!*) | Int *más*, booster; 0 in the corpus |
+| *más o menos* X (*más o menos bueno*; 48, 29 rows after other rules) | Int *más o menos*, compromiser |
+| *por/a lo menos* X (= at least; 35) | host kept, Int `/` |
+| *mejor, peor* hosts (ADJ or ADV) | comparative, row dropped |
+| *mayor, menor* hosts | dropped unless intensified (*muy mayor* = elderly is a positive degree) |
+| *tan, más, menos* as hosts themselves (9,631 rows, mostly bare *más*, *nada más*, cut-off *tan , tan*) | not hosts, like *muy* |
+
+- Brown, E. L. & Cortés-Torres, M. (2013). Puerto Rican intensifiers: *Bien/muy* variables. In A. M. Carvalho & S. Beaudrie (eds.), *Selected Proceedings of the 6th Workshop on Spanish Sociolinguistics*, 11-19. Somerville, MA: Cascadilla Proceedings Project.
+- Bulgin, J., Elford, N., Harding, L., Henley, B., Power, S. & Walters, C. (2008). So very really variable: Social patterning of intensifier use by Newfoundlanders online. *Linguistica Atlantica* 29, 101-115.
+- D'Arcy, A. (2015). Stability, stasis and change. *Diachronica* 32, 449-493.
+- Ito, R. & Tagliamonte, S. A. (2003). *Well* weird, *right* dodgy, *very* strange, *really* cool: Layering and recycling in English intensifiers. *Language in Society* 32(2), 257-279.
+- Orozco, R., Morales, W. & Valenzuela, L. (2026). A variationist study of Spanish intensifiers. *Proceedings of the Linguistic Society of America*.
+- Quirk, R., Greenbaum, S., Leech, G. & Svartvik, J. (1985). *A Comprehensive Grammar of the English Language*. London: Longman, pp. 589-590.
+- Stratton, J. M. (2020). Adjective intensifiers in German. *Journal of Germanic Linguistics* 32(2), 183-215.
+- Stratton, J. M. & Sundquist, J. D. (2022). A variationist sociolinguistic analysis of intensifiers in Oslo Norwegian. *Journal of Germanic Linguistics* 34(4), 385-419.
 
 ## Dialect corrections (`pipeline/dialects/`)
 
@@ -113,7 +153,7 @@ Off by default; `--dialect pr --dialect co` turns them on, and the corpus needs 
 | `co` | dropped intervocalic d (*complicao*, *pesao*, *consentio*, *tímia*; mostly TUNJ) | lemma -ado, -ido |
 | `co` | *entoes* (= *entonces*) as NOUN/VERB/ADJ/PART (291, nearly all TUNJ) | ADV |
 
-Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 rows (16.45% of adjective rows intensified) instead of 100,440 (16.46%) (2026-11-01, 310 transcripts).
+Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 rows (16.45% of adjective rows intensified) instead of 100,440 (16.46%) (2026-11-01, 310 transcripts, before the [envelope rules](#intensifier-types-and-the-envelope-of-variation)).
 
 ## Adj_type, Noun and Verb (`sentence_relations` in `pipeline/extract_stanza.py`)
 

@@ -95,9 +95,21 @@ def test_archi_prefix():
     assert (row["Int"], row["Lex_Adj"]) == ("archi-", "conocido")
 
 
-def test_negated_intensifier_skips_adjective_token():
-    rows = process_segment("no_ADV_no muy_ADV_muy bueno_ADJ_bueno", "S01")
-    assert all(row["Adj"] == "/" for row in rows)
+@pytest.mark.parametrize(
+    ("segment", "row"),
+    [
+        ("no_ADV_no muy_ADV_muy bueno_ADJ_bueno", ("muy", "bueno", "no")),
+        ("no_ADV_no tan_ADV_tan bueno_ADJ_bueno", ("tan", "bueno", "no")),
+        ("no_ADV_no es_AUX_ser tan_ADV_tan bueno_ADJ_bueno", ("tan", "bueno", "no")),
+        ("nunca_ADV_nunca fue_AUX_ser muy_ADV_mucho bueno_ADJ_bueno", ("muy", "bueno", "nunca")),
+        ("ni_CCONJ_ni tan_ADV_tan pobres_ADJ_pobre", ("tan", "pobre", "ni")),
+        ("es_AUX_ser muy_ADV_mucho bueno_ADJ_bueno", ("muy", "bueno", "/")),
+        ("no_ADV_no es_AUX_ser bueno_ADJ_bueno", ("/", "bueno", "no")),
+    ],
+)
+def test_negation_marked_not_dropped(segment, row):
+    rows = [r for r in process_segment(segment, "S01") if r["Adj"] != "/"]
+    assert [(r["Int"], r["Lex_Adj"], r["Negation"]) for r in rows] == [row]
 
 
 def test_adverb_host():
@@ -111,7 +123,7 @@ def test_intensifier_is_not_counted_as_adverb_host():
 
 
 def test_negation_is_not_counted_as_adverb_host():
-    assert process_segment("no_ADV_no muy_ADV_muy bueno_ADJ_bueno", "S01") == []
+    assert [r["Adv"] for r in process_segment("no_ADV_no muy_ADV_muy bueno_ADJ_bueno", "S01")] == ["/"]
 
 
 @pytest.mark.parametrize(("word", "n"), [("queso", 2), ("guitarra", 3), ("pingüino", 3), ("muy", 1)])
@@ -392,3 +404,105 @@ def test_retag_quantifiers_are_not_hosts(segment):
 @pytest.mark.parametrize("host", ["bue", "bie", "tod", "nun"])
 def test_cut_off_without_restart_is_fragment(host):
     assert process_segment(f"sería_AUX_ser muy_ADV_mucho {host}_ADV_{host} podría_AUX_poder", "S01") == []
+
+
+def hosts(segment):
+    return [
+        (r["Int"], r["Int_type"], r["Lex_Adj"] if r["Adj"] != "/" else r["Adv"])
+        for r in process_segment(segment, "S01")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("segment", "row"),
+    [
+        ("es_AUX_ser muy_ADV_mucho bonito_ADJ_bonito", ("muy", "booster", "bonito")),
+        ("es_AUX_ser totalmente_ADV_totalmente distinto_ADJ_distinto", ("totalmente", "maximizer", "distinto")),
+        ("es_AUX_ser casi_ADV_casi imposible_ADJ_imposible", ("casi", "approximator", "imposible")),
+        ("es_AUX_ser especialmente_ADV_especialmente bonito_ADJ_bonito", ("especialmente", "emphasizer", "bonito")),
+        ("es_AUX_ser bonitísimo_ADJ_bonitísimo", ("-ísimo", "booster", "bonito")),
+        ("es_AUX_ser bonito_ADJ_bonito", ("/", "/", "bonito")),
+    ],
+)
+def test_int_type_follows_quirk_scale(segment, row):
+    assert hosts(segment) == [row]
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "es_AUX_ser tan_ADV_tan bonita_ADJ_bonito",
+        "una_DET_uno casa_NOUN_casa tan_ADV_tan bonita_ADJ_bonito",
+        "qué_DET_qué muchacho_NOUN_muchacho tan_ADV_tan simpático_ADJ_simpático",
+        "¡_PUNCT_¡ ay_INTJ_ay qué_PRON_qué tan_ADV_tan lindo_ADJ_lindo",
+        "el_DET_el dolor_NOUN_dolor tan_ADV_tan grande_ADJ_grande que_PRON_que uno_PRON_uno tiene_VERB_tener",
+        "¡_PUNCT_¡ qué_DET_qué profesor_NOUN_profesor tan_ADV_tan malo_ADJ_malo !_PUNCT_! ,_PUNCT_, que_SCONJ_que sí_ADV_sí",
+    ],
+)
+def test_tan_intensifier(segment):
+    assert [h for h in hosts(segment) if h[0] != "/"] == [
+        ("tan", "booster", h[2]) for h in hosts(segment) if h[0] != "/"
+    ]
+    assert len([h for h in hosts(segment) if h[0] == "tan"]) == 1
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        # equality, result (Bulgin et al. 2008), interrogative, fixed
+        "no_ADV_no es_AUX_ser tan_ADV_tan grande_ADJ_grande como_ADP_como este_PRON_este",
+        "es_AUX_ser tan_ADV_tan bueno_ADJ_bueno ,_PUNCT_, como_SCONJ_como lo_PRON_él era_AUX_ser",
+        "son_AUX_ser tan_ADV_tan atrevidos_ADJ_atrevido que_SCONJ_que me_PRON_yo fui_VERB_ir",
+        "es_AUX_ser tan_ADV_tan descarado_ADJ_descarado ,_PUNCT_, que_SCONJ_que hasta_ADV_hasta",
+        "no_ADV_no sé_VERB_saber qué_PRON_qué tan_ADV_tan buenos_ADJ_bueno",
+        "me_PRON_yo voy_VERB_ir tan_ADV_tan pronto_ADV_pronto",
+    ],
+)
+def test_tan_outside_envelope_dropped(segment):
+    assert [h for h in hosts(segment) if h[2] in ("grande", "bueno", "atrevido", "descarado", "pronto")] == []
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "es_AUX_ser más_ADV_más grande_ADJ_grande que_SCONJ_que yo_PRON_yo",
+        "es_AUX_ser más_ADV_más grande_ADJ_grande",
+        "es_AUX_ser mucho_ADV_mucho más_ADV_más grande_ADJ_grande",
+        "lo_PRON_él más_ADV_más grande_ADJ_grande",
+        "la_DET_el casa_NOUN_casa más_ADV_más grande_ADJ_grande",
+        "es_AUX_ser menos_ADV_menos grande_ADJ_grande",
+        "es_AUX_ser mejor_ADJ_mejor",
+        "vive_VERB_vivir mejor_ADV_mejor",
+        "mi_DET_mi hermano_NOUN_hermano mayor_ADJ_mayor",
+        "quiero_VERB_querer más_ADV_más",
+    ],
+)
+def test_comparatives_and_superlatives_dropped(segment):
+    assert [h for h in hosts(segment) if h[2] in ("grande", "mejor", "mayor", "más")] == []
+
+
+def test_muy_mayor_kept():
+    assert hosts("es_AUX_ser muy_ADV_mucho mayor_ADJ_mayor") == [("muy", "booster", "mayor")]
+
+
+def test_exclamative_mas_is_booster():
+    assert hosts("¡_PUNCT_¡ qué_DET_qué casa_NOUN_casa más_ADV_más bonita_ADJ_bonito") == [("más", "booster", "bonito")]
+
+
+def test_mas_o_menos_is_compromiser():
+    assert hosts("es_AUX_ser más_ADV_más o_CCONJ_o menos_ADV_menos bueno_ADJ_bueno") == [
+        ("más o menos", "compromiser", "bueno")
+    ]
+
+
+def test_por_lo_menos_keeps_host_bare():
+    assert hosts("por_ADP_por lo_PRON_él menos_ADV_menos tranquilo_ADJ_tranquilo") == [("/", "/", "tranquilo")]
+
+
+def test_result_clause_past_segment_comma(tmp_path):
+    (tmp_path / "S01.txt").write_text(
+        "es_AUX_ser tan_ADV_tan descarado_ADJ_descarado ,_PUNCT_, que_SCONJ_que hasta_ADV_hasta se_PRON_él fue_VERB_ir\n",
+        encoding="utf-8",
+    )
+    df = analyze(str(tmp_path))
+    assert "descarado" not in set(df.get("Lex_Adj", []))

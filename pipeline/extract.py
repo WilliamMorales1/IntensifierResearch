@@ -39,6 +39,44 @@ intensifier_list = [
     "archi",
 ]
 
+# Quirk et al. (1985:589-590) scale as operationalized by Stratton & Sundquist (2022:388-389): amplifiers are
+# maximizers or boosters, downtoners approximators, compromisers, diminishers or minimizers; emphasizers are not
+# scalar and do not count as intensification (Stratton & Sundquist 2022:395)
+int_types = {
+    "absolutamente": "maximizer",
+    "completamente": "maximizer",
+    "totalmente": "maximizer",
+    "plenamente": "maximizer",
+    "extremadamente": "maximizer",
+    "sumamente": "maximizer",
+    "muy": "booster",
+    "bien": "booster",
+    "mucho": "booster",
+    "harto": "booster",
+    "bastante": "booster",
+    "demasiado": "booster",
+    "súper": "booster",
+    "re": "booster",
+    "realmente": "booster",
+    "verdaderamente": "booster",
+    "increíblemente": "booster",
+    "tan": "booster",
+    "más": "booster",
+    "-ísimo": "booster",
+    "archi-": "booster",
+    "casi": "approximator",
+    "más o menos": "compromiser",
+    "especialmente": "emphasizer",
+    "estrictamente": "emphasizer",
+}
+
+# degree words that only intensify in some constructions (see degree_types); never hosts themselves
+degree_words = {"tan", "más", "mas", "menos"}
+
+# comparative hosts (Stratton & Sundquist 2022:395); muy mayor (= elderly) is a positive degree, so mayor/menor stay when intensified
+comparatives = {"mejor", "peor"}
+comparatives_bare = {"mayor", "menor"}
+
 apocope_dict = {
     "gran": "grande",
     "buen": "bueno",
@@ -183,7 +221,7 @@ def is_adv(word):
     adv_match = re.search(r"^(.*)_ADV_", word)
     if adv_match and is_well_formed(word):
         adverb = adv_match.group(1).lower()
-        return adverb not in intensifier_list and adverb != "no"
+        return adverb not in intensifier_list and adverb not in degree_words and adverb != "no"
     return False
 
 
@@ -239,7 +277,104 @@ def get_int(word):
     intensifier = int_match.group(1)  # type: ignore
     if intensifier == "super" or intensifier == "supel":
         intensifier = "súper"
+    if intensifier.lower() == "mas":
+        intensifier = "más"
     return intensifier.lower()
+
+
+def _text(word):
+    return word.split("_")[0].lower()
+
+
+def _upos(word):
+    parts = word.split("_")
+    return parts[1] if len(parts) == 3 else ""
+
+
+def _degree_type(words, i):
+    # i is tan/más/menos; words[i + 1] the host
+    word = _text(words[i])
+    host = _text(words[i + 1])
+    j = i
+    while j > 0 and _text(words[j - 1]) == word:  # tan tan bonito
+        j -= 1
+    prev = _text(words[j - 1]) if j > 0 else ""
+
+    if word == "tan":
+        if host in ("solo", "sólo", "pronto", "siquiera"):
+            return "fixed"
+        # no sé qué tan grande (= how big), like Norwegian hvor gammel (Stratton & Sundquist 2022:395);
+        # clause-initial ¡ay, qué tan lindo! is exclamative
+        if prev in ("qué", "que", "cuán", "cuan") and j > 1 and _upos(words[j - 2]) not in ("PUNCT", "INTJ"):
+            return "interrogative"
+        k = i + 2
+        while k < len(words) and _upos(words[k]) == "PUNCT" and k < i + 4:
+            k += 1
+        nxt = _text(words[k]) if k < len(words) else ""
+        after = _text(words[k + 1]) if k + 1 < len(words) else ""
+        if nxt == "como" and after == "para":
+            return "result"
+        # como que is a filler (tan bonito como que ...)
+        if nxt == "como" and after != "que":
+            return "equality"
+        # relative que is PRON (el dolor tan grande que uno tiene); ¡qué profesor tan malo!, que ... is no result
+        exclamative = any(_text(w) == "qué" for w in words[max(0, j - 3) : j])
+        if nxt == "que" and _upos(words[k]) == "SCONJ" and not exclamative:
+            return "result"
+        return "intensifier"
+
+    # más o menos bueno: a compromiser, like Norwegian mer eller mindre (Stratton & Sundquist 2022:391)
+    if word == "menos" and j > 1 and prev == "o" and _text(words[j - 2]) in ("más", "mas"):
+        return "intensifier"
+    # por lo menos, a lo menos (= at least) focus the host without grading it
+    if word == "menos" and prev == "lo" and j > 1 and _text(words[j - 2]) in ("por", "a", "al"):
+        return "focus"
+    # ¡qué casa más bonita!: the only intensifying más; everything else compares
+    if word in ("más", "mas") and _upos(words[i + 1]) == "ADJ":
+        k = j - 1
+        while k >= 0 and _upos(words[k]) in ("NOUN", "ADJ", "DET") and _text(words[k]) != "qué":
+            k -= 1
+        noun = any(_upos(words[m]) == "NOUN" for m in range(k + 1, j))
+        if noun and k >= 0 and _text(words[k]) == "qué":
+            return "intensifier"
+    if prev in definite or (j > 1 and _upos(words[j - 1]) == "NOUN" and _text(words[j - 2]) in definite):
+        return "superlative"
+    return "comparative"
+
+
+# el más bonito, la casa más bonita, mi hijo más chiquito; una vida más ordenada compares
+definite = {
+    "el",
+    "la",
+    "los",
+    "las",
+    "lo",
+    "del",
+    "al",
+    "mi",
+    "mis",
+    "tu",
+    "tus",
+    "su",
+    "sus",
+    "nuestro",
+    "nuestra",
+    "nuestros",
+    "nuestras",
+}
+
+
+def degree_types(words):
+    """degree_types labels each tan/más/menos before a host: intensifier, focus, comparative, superlative, equality, result, interrogative or fixed."""
+    out = [None] * len(words)
+    for i in range(len(words) - 1):
+        if _text(words[i]) in degree_words and _upos(words[i + 1]) in ("ADJ", "ADV"):
+            out[i] = _degree_type(words, i)
+    return out
+
+
+def _is_degree_int(words, k, degree):
+    return k >= 0 and _text(words[k]) in degree_words and degree[k] == "intensifier"
 
 
 def is_mas_bien(words, i):
@@ -247,6 +382,21 @@ def is_mas_bien(words, i):
     return (
         i > 1 and words[i - 1].split("_")[0].lower() == "bien" and words[i - 2].split("_")[0].lower() in ("más", "mas")
     )
+
+
+# negators marked in Negation instead of dropped, unlike Stratton & Sundquist (2022:395)
+negators = {"no", "nunca", "jamás", "tampoco", "ni"}
+
+
+def get_negation(words, i, relations):
+    """get_negation returns the negator scoping over the host at i (no es tan bueno, no muy bueno), or "/"."""
+    before = [_text(w) for w in words[:i]]
+    if relations is not None:
+        # the parse can reach past the segment, so the negator must come before the host in Phr
+        return relations.negation if relations.negation in before else "/"
+    # no parse (tests): any negator earlier in the segment
+    found = [w for w in before if w in negators]
+    return found[-1] if found else "/"
 
 
 def add_verb(row_data, relations, words):
@@ -287,8 +437,28 @@ def retag(words):
     return out
 
 
-def process_segment(segment, speaker, parse=None):
-    """process_segment extracts host rows; parse, when given, holds a Relations or None per word."""
+def _modifier(words, i, degree):
+    # (Int, Double) for the host at i, or None when the row leaves the envelope of variation
+    k = i - 1
+    if k < 0:
+        return "/", "/"
+    if _text(words[k]) in degree_words and degree[k] is not None:
+        if degree[k] == "focus":
+            return "/", "/"
+        if degree[k] != "intensifier":
+            return None
+        if _text(words[k]) == "menos":
+            return "más o menos", "/"
+    elif not is_int(words[k]) or is_mas_bien(words, i):
+        return "/", "/"
+    double = "/"
+    if k > 0 and (is_int(words[k - 1]) or _is_degree_int(words, k - 1, degree)):
+        double = get_int(words[k - 1])
+    return get_int(words[k]), double
+
+
+def process_segment(segment, speaker, parse=None, degree=None):
+    """process_segment extracts host rows; parse and degree, when given, hold a Relations and a degree_types label per word."""
     rows = []
 
     intensifier = None
@@ -299,6 +469,8 @@ def process_segment(segment, speaker, parse=None):
     double = None
 
     words = retag(segment.split())
+    if degree is None:
+        degree = degree_types(words)
 
     # Process each word in the segment
     for i, word in enumerate(words):
@@ -318,22 +490,15 @@ def process_segment(segment, speaker, parse=None):
                 attributive = "ambiguous"
                 noun = "/"
 
-            # muy bueno
-            if i > 0 and is_int(words[i - 1]) and not is_mas_bien(words, i):
-                intensifier = get_int(words[i - 1])
-                # no muy bueno
-                if i > 1 and words[i - 2] == "no_ADV_no":
-                    continue
-                if (intensifier, lex_adjective) in fixed_expressions:
-                    continue
-                # muy muy bueno
-                elif i > 1 and is_int(words[i - 2]):
-                    double = get_int(words[i - 2])
-                else:
-                    double = "/"
-            else:
-                intensifier = "/"
-                double = "/"
+            # muy bueno, muy muy bueno; None for no muy bueno, más bueno que
+            modifier = _modifier(words, i, degree)
+            if modifier is None:
+                continue
+            intensifier, double = modifier
+            if (intensifier, lex_adjective) in fixed_expressions or lex_adjective in comparatives:
+                continue
+            if lex_adjective in comparatives_bare and intensifier == "/":
+                continue
 
             if lex_adjective.endswith("ísimo"):
                 intensifier = "-ísimo"
@@ -359,11 +524,13 @@ def process_segment(segment, speaker, parse=None):
                 "Phr": phrase,
                 "Double": double,
                 "Int": intensifier,
+                "Int_type": int_types.get(intensifier, "/"),
                 "Adv": "/",
                 "Adj": adjective,
                 "Lex_Adj": lex_adjective,
                 "Adj_type": attributive,
                 "Noun": noun.lower(),
+                "Negation": get_negation(words, i, parse[i] if parse else None),
             }
             add_verb(row_data, parse[i] if parse else None, words)
             rows.append(row_data)
@@ -377,21 +544,12 @@ def process_segment(segment, speaker, parse=None):
             isimo_base = strip_isimo_adv(adverb)
 
             # muy lejos
-            if i > 0 and is_int(words[i - 1]) and not is_mas_bien(words, i):
-                intensifier = get_int(words[i - 1])
-                # no muy lejos
-                if i > 1 and words[i - 2] == "no_ADV_no":
-                    continue
-                if adverb in non_gradable or (intensifier, adverb) in fixed_expressions:
-                    continue
-                # muy muy lejos
-                elif i > 1 and is_int(words[i - 2]):
-                    double = get_int(words[i - 2])
-                else:
-                    double = "/"
-            else:
-                intensifier = "/"
-                double = "/"
+            modifier = _modifier(words, i, degree)
+            if modifier is None or adverb in comparatives:
+                continue
+            intensifier, double = modifier
+            if intensifier != "/" and (adverb in non_gradable or (intensifier, adverb) in fixed_expressions):
+                continue
             if isimo_base:
                 intensifier, adverb = "-ísimo", isimo_base
 
@@ -405,11 +563,13 @@ def process_segment(segment, speaker, parse=None):
                 "Phr": phrase,
                 "Double": double,
                 "Int": intensifier,
+                "Int_type": int_types.get(intensifier, "/"),
                 "Adv": adverb,
                 "Adj": "/",
                 "Lex_Adj": "/",
                 "Adj_type": "/",
                 "Noun": "/",
+                "Negation": get_negation(words, i, parse[i] if parse else None),
             }
             add_verb(row_data, parse[i] if parse else None, words)
             rows.append(row_data)
@@ -490,7 +650,6 @@ def fix_isimo_hosts(df):
 
 def analyze(input_path, output_filename=None, parses=None, drop_invariant=False):
     """analyze extracts every file in input_path; parses maps a filename to one Relations or None per token."""
-    # no mas, tan
     # Create a list to store data frames
     data_frames = []
 
@@ -523,17 +682,17 @@ def analyze(input_path, output_filename=None, parses=None, drop_invariant=False)
             if parse is not None and len(parse) != len(starts):
                 raise ValueError(f"{filename}: parse has {len(parse)} tokens, tags have {len(starts)}")
 
+            # tan cansada , que no sé: the result clause can lie past the segment's comma
+            degree = degree_types(retag(content.split()))
+
             # Process each segment
             offset = 0
             for segment in segments:
-                seg_parse = None
-                if parse is not None:
-                    # the split can fall inside a token ("..._PUNCT_..."), so map by character offset
-                    seg_parse = [
-                        parse[bisect.bisect_right(starts, offset + m.start()) - 1] for m in re.finditer(r"\S+", segment)
-                    ]
+                # the split can fall inside a token ("..._PUNCT_..."), so map by character offset
+                index = [bisect.bisect_right(starts, offset + m.start()) - 1 for m in re.finditer(r"\S+", segment)]
+                seg_parse = [parse[k] for k in index] if parse is not None else None
                 offset += len(segment)
-                seg_rows = process_segment(segment, speaker, seg_parse)
+                seg_rows = process_segment(segment, speaker, seg_parse, [degree[k] for k in index])
                 rows.extend(seg_rows)
 
         # Check if rows list is not empty
@@ -615,11 +774,13 @@ def merge_speaker_data(id_df, int_df):
 term_cols = [
     "Double",
     "Int",
+    "Int_type",
     "Adv",
     "Adj",
     "Lex_Adj",
     "Adj_type",
     "Noun",
+    "Negation",
     "Verb",
     "Inf_Verb",
 ]

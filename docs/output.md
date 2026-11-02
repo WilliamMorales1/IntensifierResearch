@@ -1,17 +1,19 @@
 # Output
 
-`output/intensifier_data_stanza_<date>.sqlite` holds the full table. `--xlsx` and `--csv` write the same table as `.xlsx` and `.csv`. One row per adjective or adverb token, intensified or not; `--drop-invariant` keeps only hosts intensified at least once in the corpus.
+`output/intensifier_data_stanza_<date>.sqlite` holds the full table. `--xlsx` and `--csv` write the same table as `.xlsx` and `.csv`. One row per adjective or adverb token, intensified or not, except comparatives, superlatives, *tan* X *como/que* and other contexts outside the envelope of variation; `--drop-invariant` keeps only hosts intensified at least once in the corpus.
 
 | Column | Meaning |
 | --- | --- |
 | `Speaker` | transcript file name |
 | `Phr_tagged`, `Phr` | the segment the token came from, tagged and plain |
-| `Int` | intensifier (*muy*, *súper*, *-ísimo*, *re-*, *archi-*, ...) or `/` |
+| `Int` | intensifier (*muy*, *tan*, *súper*, *-ísimo*, *re-*, *archi-*, *más o menos*, ...) or `/` |
+| `Int_type` | `maximizer`, `booster`, `approximator`, `compromiser` or `emphasizer` (Quirk et al. 1985 via Stratton & Sundquist 2022; see [rules](rules.md#intensifier-types-and-the-envelope-of-variation)), or `/`. Emphasizers count as unintensified in Stratton's method |
 | `Double` | second intensifier (*muy muy*) or `/` |
 | `Adj`, `Lex_Adj` | adjective host as written, and its masculine singular lemma |
 | `Adv` | adverb host |
 | `Adj_type` | `predicative`, `attributive` or `ambiguous` |
 | `Noun` | noun the adjective modifies or describes |
+| `Negation` | negator scoping over the host (*no*, *nunca*, *ni*, *tampoco*, *jamás*) or `/`; Stratton & Sundquist (2022) drop these rows, so filter `Negation = '/'` to match them |
 | `Verb`, `Inf_Verb` | verb or copula tied to the host, as written and as its infinitive lemma |
 | `Number` | token id within the speaker (`<Speaker>_01`, ...) |
 | `Syllable` | syllables in the host |

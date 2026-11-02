@@ -26,6 +26,22 @@ python pipeline/extract_stanza.py --input examples/text --tagged examples/stanza
     --speakers examples/speakers.xlsx --output examples/intensifier_data --csv
 ```
 
+## Intensifier classification
+
+`Int_type` sorts intensifiers into maximizers, boosters, approximators, compromisers and emphasizers. This follows Quirk et al.'s (1985:589-590) scale as operationalized by Stratton & Sundquist (2022) and Stratton (2020). `Negation` records the negator (*no*, *nunca*, *ni*, *tampoco*, *jamás*) that scopes over a host. Negated rows are kept and marked, not dropped as in Stratton & Sundquist (2022:395).
+
+The classification is partly arbitrary. The scale was written for English, and the class boundaries are judgment calls, not facts about Spanish:
+
+- Stratton & Sundquist leave Norwegian *ganske* 'quite' out of their amplifier/downtoner counts because it does both jobs (2022:400, fn. 10), and *utrolig* 'unbelievably' because it is unclear whether it is an emphasizer, booster or maximizer (2022:396). Spanish has the same kind of items, but this pipeline gives each one a single class.
+- *bastante* and *demasiado* are boosters because in this Colombian corpus they mostly mean 'very'. Elsewhere they can read as 'fairly' (compromiser) or 'too' (excess).
+- *extremadamente* and *sumamente* are maximizers because Quirk lists *extremely* among them. Many studies call them boosters.
+- *realmente*, *verdaderamente* and *increíblemente* are boosters, as *really* is in Tagliamonte's work. Quirk calls *really* an emphasizer.
+- *-ísimo* and *archi-* are boosters, though grammars call *-ísimo* the *superlativo absoluto*.
+- *más o menos* is a compromiser, after Quirk's *more or less*.
+- Which uses of *tan* and *más* count as intensifiers is a rule-based guess: comparatives, *tan X como*, *tan X que* result clauses and 'how' readings are dropped. Earlier Spanish work dropped *tan* and *más* entirely (Brown & Cortés-Torres 2013; Orozco, Morales & Valenzuela 2026).
+
+Check every class against your own reading before using `Int_type` in a model. The full mapping is one dictionary, `int_types` in `pipeline/extract.py`, and the rules and references are in [docs/rules.md](docs/rules.md#intensifier-types-and-the-envelope-of-variation).
+
 ## Docs
 
 - [Setup](docs/setup.md): conda, uv, pip, CPU-only PyTorch, tests.
