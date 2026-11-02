@@ -6,6 +6,10 @@ Extracts intensifier + adjective/adverb tokens (*muy bueno*, *riquísimo*, *arch
 
 Results from an earlier version are published in [*Proceedings of the LSA* 11(1)](https://doi.org/10.3765/plsa.v11i1.6091); that code is on the [`LSA-2026-paper`](../../tree/LSA-2026-paper) branch, with its citation.
 
+## Dependencies
+
+Python 3.10+ with [Stanza](https://stanfordnlp.github.io/stanza/) 1.15.0, PyTorch 2.6+, pandas, openpyxl (speaker sheets) and python-docx (transcripts). Dev: pytest, ruff. Pinned in `environment.yml` (conda) and `pyproject.toml` (uv/pip); see [Setup](docs/setup.md).
+
 ## Quick start
 
 ```fish
