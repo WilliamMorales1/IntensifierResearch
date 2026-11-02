@@ -16,7 +16,7 @@ Python 3.10+ with [Stanza](https://stanfordnlp.github.io/stanza/) 1.15.0, PyTorc
 conda env create -f environment.yml
 conda activate intensifier-research
 python pipeline/clean_transcripts.py                          # data/original/*.docx -> data/text/*.txt, from minute 10 (--start-minute 5 for minute 5)
-python pipeline/run.py --dialect pr --dialect co   # data/text -> output/intensifier_data_stanza_<date>.sqlite
+python pipeline/run.py --dialect pr --dialect co --speakers <sheet>.xlsx   # data/text -> output/intensifier_data_stanza_<date>.sqlite
 ```
 
 Tagging and parsing use [Stanza](https://stanfordnlp.github.io/stanza/) transformer models (about 1 GB) and need a GPU; see [Running on Colab](docs/pipeline.md#running-on-colab). Extraction from finished parses runs on any laptop in about 5 minutes.

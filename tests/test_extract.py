@@ -551,3 +551,16 @@ def test_split_noun_cuidado_keeps_noun_and_others_take_word_tag():
 
     words, _ = join_splits(["mucho_DET_mucho", "cuida_NOUN_cuidar", "do_NOUN_do", "horri_NOUN_horri", "bles_ADJ_bles"])
     assert words == ["mucho_DET_mucho", "cuidado_NOUN_cuidado", "horribles_ADJ_horrible"]
+
+
+def test_write_outputs_without_speakers_adds_no_metadata(tmp_path):
+    corrected = tmp_path / "corrected"
+    corrected.mkdir()
+    (corrected / "S01.txt").write_text("es_AUX_ser muy_ADV_mucho rebonita_ADJ_rebonito ._PUNCT_.\n", encoding="utf-8")
+    output = str(tmp_path / "out")
+
+    df = write_outputs(analyze(str(corrected)), output)
+
+    assert "Gender" not in df.columns
+    assert (tmp_path / "out.sqlite").exists()
+    assert (tmp_path / "out_re-words.txt").read_text(encoding="utf-8").split() == ["rebonita"]

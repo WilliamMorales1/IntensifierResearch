@@ -6,7 +6,7 @@ from datetime import date
 
 import dialects as dialect_rules
 from annotate import correct_folder, parse_folder, parse_relations, tag_folder
-from extract import analyze, speaker_data, write_outputs
+from extract import analyze, write_outputs
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--tagged", default="data/stanza_tagged", help="where stanza output goes")
     parser.add_argument("--corrected", default="data/stanza_corrected", help="tags after correct_tokens")
     parser.add_argument("--parsed", default="data/stanza_parsed", help="dependency parse of the corrected tags")
-    parser.add_argument("--speakers", default=speaker_data, help="speaker metadata sheet, one row per Speaker")
+    parser.add_argument("--speakers", help="speaker metadata sheet, one row per Speaker; omitted: no metadata columns")
     parser.add_argument(
         "--output",
         default="output/intensifier_data_stanza_" + date.today().isoformat(),

@@ -10,8 +10,8 @@ import pandas as pd
 
 from dialects.pr import delateralize
 
-speaker_data = "data/speaker_data_ALL_2026-3-12.xlsx"
-re_words = "output/re-words.txt"
+# re- hosts seen by the last analyze, for a hand check
+re_words = []
 
 intensifier_list = [
     "absolutamente",
@@ -179,9 +179,7 @@ def is_adj(word):
 
 
 def log_re_word(word):
-    os.makedirs(os.path.dirname(re_words), exist_ok=True)
-    with open(re_words, "a", encoding="utf-8") as f:
-        f.write(word + "\n")
+    re_words.append(word)
 
 
 def deaccent(word):
@@ -734,8 +732,7 @@ def analyze(input_path, output_filename=None, parses=None, drop_invariant=False)
     # Create a list to store data frames
     data_frames = []
 
-    if os.path.exists(re_words):
-        os.remove(re_words)
+    re_words.clear()
 
     # Iterate over marked files in the input folder
     for filename in sorted(f for f in os.listdir(input_path) if f.endswith(".txt")):
@@ -795,7 +792,6 @@ def analyze(input_path, output_filename=None, parses=None, drop_invariant=False)
         data = drop_invariant_hosts(data)
 
     print("Successfully created data")
-    print(f"re- words saved to {re_words}")
 
     if output_filename:
         data.to_csv(output_filename, index=False)
@@ -963,21 +959,23 @@ def to_sqlite(df, output_filename):
     print(f"Saved SQLite database to {output_filename}")
 
 
-def write_outputs(df, output, speaker_path, xlsx=False, csv=False):
-    """write_outputs adds Number and Syllable, merges speaker metadata if present, and saves output.sqlite plus optional xlsx and csv."""
+def write_outputs(df, output, speaker_path=None, xlsx=False, csv=False):
+    """write_outputs adds Number and Syllable, merges speaker metadata if given, and saves output.sqlite, output_re-words.txt if any and optional xlsx and csv."""
     number_counts = {}
     df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
     df["Syllable"] = df["Adj"].apply(count_syllables)
-    if os.path.exists(speaker_path):
+    if speaker_path:
         df = merge_speaker_data(pd.read_excel(speaker_path), df)
-    else:
-        print(f"No {speaker_path}, skipping speaker metadata")
 
     for col in df.select_dtypes(include=["object", "string"]).columns:
         # commas would split cells in tools that re-read the csv naively
         df[col] = df[col].str.replace(",", "", regex=False)
 
     to_sqlite(df, output + ".sqlite")
+    if re_words:
+        with open(output + "_re-words.txt", "w", encoding="utf-8") as f:
+            f.writelines(word + "\n" for word in re_words)
+        print(f"re- words saved to {output}_re-words.txt")
     if xlsx:
         df.to_excel(output + ".xlsx", index=False)
         print(f"Saved {output}.xlsx")

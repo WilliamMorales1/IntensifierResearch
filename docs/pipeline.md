@@ -5,7 +5,7 @@
 | Path | Contents |
 | --- | --- |
 | `data/original/` | transcripts as `.docx`, one per speaker; the file name (without extension) is the `Speaker` id. Two formats are read as-is: PRESEEA (XML header with `codigo_hab`, `E:`/`I:` turns, markup like `<alargamiento/>`) and Cartagena (`A:`/`B:` turns, informant = whichever speaks more). `.doc` files need converting first (`convert_doc_docx`, LibreOffice). |
-| `data/speaker_data_ALL_2026-3-12.xlsx` | one row per speaker: `Speaker` plus any metadata columns (`Gender`, `Age`, `Edu`, `Corpus`, ...), copied onto every token. Optional; pass another sheet with `--speakers`. |
+| speaker sheet (`.xlsx`, any path) | one row per speaker: `Speaker` plus any metadata columns (`Gender`, `Age`, `Edu`, `Corpus`, ...), copied onto every token. Optional: pass it with `--speakers`; without it the output has no metadata columns. |
 
 ## Stages
 

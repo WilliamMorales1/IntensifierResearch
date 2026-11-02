@@ -18,6 +18,8 @@
 | `Number` | token id within the speaker (`<Speaker>_01`, ...) |
 | `Syllable` | syllables in the host |
 
+Next to it, `<output>_re-words.txt` (only when there are any) lists hosts starting with *re-* for a hand check of the *re-* intensifier.
+
 `/` means not applicable or not found. The SQLite file is about half the size of the csv: speakers, phrases and short words are stored once, and the `intensifier_data` view rebuilds the table.
 
 ```python

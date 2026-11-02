@@ -30,7 +30,7 @@ def score(gold, output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("output", help="intensifier_data_*.sqlite")
-    parser.add_argument("--gold", default="data/eval/adj_gold.tsv", help="hand-labelled sample")
+    parser.add_argument("--gold", required=True, help="hand-labelled sample (tsv)")
     args = parser.parse_args()
     gold = pd.read_csv(args.gold, sep="\t", keep_default_na=False)
     output = pd.read_sql("SELECT * FROM intensifier_data", sqlite3.connect(args.output))
