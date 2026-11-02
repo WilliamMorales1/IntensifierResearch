@@ -561,7 +561,7 @@ def parse_folder(input_folder, output_folder, workers):
 
 
 Dep = namedtuple("Dep", "id text upos lemma head deprel")
-Relations = namedtuple("Relations", "adj_type noun verb inf_verb negation verbal_int")
+Relations = namedtuple("Relations", "adj_type noun verb inf_verb negation verbal_int head")
 
 
 def read_conllu(path):
@@ -624,17 +624,17 @@ def adjective_relation(sent, w):
     rel = w.deprel.split(":")[0]
     # "mhm, muy joven": the parser takes a filler for the noun
     if head is not None and head.text.lower() in fillers:
-        return "ambiguous", "/"
+        return "ambiguous", "/", "/"
     if rel == "amod" and head is not None:
-        return "attributive", _noun([head], w)
+        return "attributive", _noun([head], w), head.text
     if _children(sent, w, "cop"):
-        return "predicative", _noun(_children(sent, w, "nsubj"), w)
+        return "predicative", _noun(_children(sent, w, "nsubj"), w), "/"
     # "una cabuya atravesada en la calle": participle phrases after a noun
     if rel == "acl" and head is not None and head.upos in ("NOUN", "PROPN"):
-        return "attributive", _noun([head], w)
+        return "attributive", _noun([head], w), head.text
     if rel == "xcomp" and head is not None:
         # "lo veo bonito" describes the object, "se puso feo" the subject
-        return "predicative", _noun(_children(sent, head, "obj") or _children(sent, head, "nsubj"), w)
+        return "predicative", _noun(_children(sent, head, "obj") or _children(sent, head, "nsubj"), w), "/"
     # "es como difícil", "queda delicioso": the parse hangs the adjective off a copular verb instead of using cop
     if (
         head is not None
@@ -642,8 +642,8 @@ def adjective_relation(sent, w):
         and rel in ("obj", "advcl", "advmod", "ccomp", "parataxis")
         and not _children(sent, w, "case")
     ):
-        return "predicative", _noun(_children(sent, head, "nsubj"), w)
-    return "ambiguous", "/"
+        return "predicative", _noun(_children(sent, head, "nsubj"), w), "/"
+    return "ambiguous", "/", "/"
 
 
 def _clause(sent, w):
@@ -710,7 +710,7 @@ def sentence_relations(sent):
             out.append(None)
             continue
         # ADV too, since correct_tokens can make a parsed ADV an ADJ ("muy chevre", "jugosísimo")
-        adj_type, noun = adjective_relation(sent, w)
+        adj_type, noun, head = adjective_relation(sent, w)
         verb = governing_verb(sent, w)
         out.append(
             Relations(
@@ -720,6 +720,7 @@ def sentence_relations(sent):
                 verb.lemma if verb else "/",
                 negation(sent, w),
                 verbal_intensifier(sent, w),
+                head,
             )
         )
     return out

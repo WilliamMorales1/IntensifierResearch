@@ -177,7 +177,7 @@ Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 
 | `acl` of a NOUN without `cop` (*empresa llamada*) | attributive | head |
 | head is a filler (*mhm*, *eeh*) or anything else | ambiguous | |
 
-Verb is the first VERB, `cop` child or AUX up the head chain, for adverb rows too. Noun and Verb must appear in `Phr`, else `/`; an attributive row whose noun is outside `Phr` becomes ambiguous.
+Verb is the first VERB, `cop` child or AUX up the head chain, for adverb rows too. Noun and Verb must appear in `Phr`, else `/`; an attributive row whose noun, or `amod`/`acl` head of any kind (*algo muy bueno* keeps its pronoun), is outside `Phr` becomes ambiguous (head check 2026-11-02: 363 rows, 73 intensified, mostly one-word segments like *muy normal*, *bien dura .*; ambiguous adjective rows 17.9% -> 18.8%).
 
 ## Known gaps
 

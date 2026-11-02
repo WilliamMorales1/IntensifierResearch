@@ -330,13 +330,13 @@ parsed = (
 def test_sentence_relations(tmp_path):
     (tmp_path / "S01.conllu").write_text(parsed, encoding="utf-8")
     first, second, third = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
-    assert first[4] == ("predicative", "casa", "es", "ser", "/", False)
-    assert first[6] == ("predicative", "casa", "es", "ser", "/", False)
-    assert first[3] == ("ambiguous", "/", "es", "ser", "/", False)
+    assert first[4] == ("predicative", "casa", "es", "ser", "/", False, "/")
+    assert first[6] == ("predicative", "casa", "es", "ser", "/", False, "/")
+    assert first[3] == ("ambiguous", "/", "es", "ser", "/", False, "/")
     assert first[0] is None
     # object is a pronoun, so no noun
-    assert second[3] == ("predicative", "/", "veo", "ver", "/", False)
-    assert third[4] == ("attributive", "casas", "vivo", "vivir", "/", False)
+    assert second[3] == ("predicative", "/", "veo", "ver", "/", False, "/")
+    assert third[4] == ("attributive", "casas", "vivo", "vivir", "/", False, "casas")
     assert third[6][2:4] == ("vivo", "vivir")
 
 
@@ -348,7 +348,7 @@ def test_noun_parsed_before_correction_gets_relation():
         Dep(3, "muy", "ADV", "mucho", 4, "advmod"),
         Dep(4, "amigo", "NOUN", "amigo", 0, "root"),
     ]
-    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser", "/", False)
+    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser", "/", False, "/")
 
 
 def test_verb_parsed_before_correction_is_not_its_own_verb():
@@ -358,7 +358,7 @@ def test_verb_parsed_before_correction_is_not_its_own_verb():
         Dep(2, "muy", "ADV", "mucho", 3, "advmod"),
         Dep(3, "chéere", "VERB", "chévere", 0, "root"),
     ]
-    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser", "/", False)
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser", "/", False, "/")
 
 
 def test_adverb_parsed_before_correction_gets_relation():
@@ -370,7 +370,7 @@ def test_adverb_parsed_before_correction_gets_relation():
         Dep(4, "muy", "ADV", "mucho", 5, "advmod"),
         Dep(5, "chevre", "ADV", "chévere", 3, "advmod"),
     ]
-    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer", "/", False)
+    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer", "/", False, "/")
 
 
 def test_predicative_subject_is_nearest(tmp_path):
@@ -386,7 +386,7 @@ def test_predicative_subject_is_nearest(tmp_path):
         encoding="utf-8",
     )
     (sent,) = read_conllu(tmp_path / "S01.conllu")
-    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser", "/", False)
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser", "/", False, "/")
 
 
 def test_adjective_under_copular_verb_is_predicative(tmp_path):
@@ -407,7 +407,7 @@ def test_adjective_under_copular_verb_is_predicative(tmp_path):
         encoding="utf-8",
     )
     first, second = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
-    assert first[3] == ("predicative", "comida", "queda", "quedar", "/", False)
+    assert first[3] == ("predicative", "comida", "queda", "quedar", "/", False, "/")
     assert second[3].adj_type == "ambiguous"
 
 
@@ -523,6 +523,37 @@ def test_noun_outside_phrase_is_dropped(tmp_path):
     assert df[["Adj", "Adj_type", "Noun"]].values.tolist() == [
         ["agradable", "ambiguous", "/"],
         ["amable", "predicative", "gente"],
+    ]
+
+
+def test_attributive_head_outside_phrase_is_ambiguous(tmp_path):
+    # "ahora esa , muy revolcada ,": the amod pronoun head sits in the previous segment; "algo muy bueno" keeps its pronoun head
+    tagged, out = tmp_path / "tagged", tmp_path / "parsed"
+    tagged.mkdir()
+    out.mkdir()
+    (out / "S01.conllu").write_text(
+        conllu(
+            ("ahora", "ADV", "ahora", 2, "advmod"),
+            ("esa", "PRON", "ese", 0, "root"),
+            (",", "PUNCT", ",", 2, "punct"),
+            ("muy", "ADV", "mucho", 5, "advmod"),
+            ("revolcada", "ADJ", "revolcado", 2, "amod"),
+            (",", "PUNCT", ",", 5, "punct"),
+            ("es", "AUX", "ser", 8, "cop"),
+            ("algo", "PRON", "algo", 0, "root"),
+            ("muy", "ADV", "mucho", 10, "advmod"),
+            ("bueno", "ADJ", "bueno", 8, "amod"),
+        ),
+        encoding="utf-8",
+    )
+    words = [(t, u, l) for s in read_conllu(out / "S01.conllu") for _, t, u, l, _, _ in s]
+    (tagged / "S01.txt").write_text(" ".join("_".join(w) for w in words) + "\n", encoding="utf-8")
+
+    df = analyze(str(tagged), str(tmp_path / "out.csv"), parse_relations(str(out)))
+
+    assert df[df["Adj"] != "/"][["Adj", "Int", "Adj_type", "Noun"]].values.tolist() == [
+        ["revolcada", "muy", "ambiguous", "/"],
+        ["bueno", "muy", "attributive", "/"],
     ]
 
 

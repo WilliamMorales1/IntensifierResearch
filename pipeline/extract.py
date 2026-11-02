@@ -626,11 +626,15 @@ def process_segment(segment, speaker, parse=None, degree=None):
             attributive, noun = "ambiguous", "/"
             if parse and parse[i]:
                 attributive, noun = parse[i].adj_type, parse[i].noun
+                visible = {w.split("_")[0].lower() for w in words}
                 # the parse spans past the segment, but the noun must be visible in Phr
-                if noun != "/" and noun.lower() not in (w.split("_")[0].lower() for w in words):
+                if noun != "/" and noun.lower() not in visible:
                     noun = "/"
                     if attributive == "attributive":
                         attributive = "ambiguous"
+                # "ahora pues muy revolcada": the amod head, even a pronoun (algo muy bueno), too
+                if attributive == "attributive" and parse[i].head.lower() not in visible:
+                    attributive = "ambiguous"
             if not re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑ/]+$", noun):
                 attributive = "ambiguous"
                 noun = "/"
