@@ -1,6 +1,6 @@
 #!/bin/bash
 # packs pipeline/, data/text and the local tagged/parsed files, starts the Stanza job on a fresh Colab T4 and
-# launches sync.sh; only files missing from data/stanza_tagged or data/stanza_parsed are tagged or parsed.
+# launches sync.sh; only files missing from data/stanza_tagged or data/stanza_parsed, or with an outdated parse, are tagged or parsed.
 # Rerun after a lost VM: files already synced back are uploaded and skipped
 set -e
 repo=$(cd "$(dirname "$0")/../.." && pwd)

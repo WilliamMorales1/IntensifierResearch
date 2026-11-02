@@ -678,3 +678,31 @@ def test_verbal_intensifier():
         "se_PRON_él cansara_VERB_cansar mucho_ADV_mucho acostada_ADJ_acostado", "S01", sentence_relations(cansara)
     )
     assert [(r["Int"], r["Adj"]) for r in rows] == [("/", "acostada")]
+
+
+def test_parse_stale_tracks_corrected_tags(tmp_path):
+    import extract_stanza as es
+
+    src, dst = tmp_path / "a.txt", tmp_path / "a.conllu"
+    src.write_text("muy_ADV_mucho bueno_ADJ_bueno\n", encoding="utf-8")
+    assert es.parse_stale(str(src), str(dst))
+    dst.write_text(
+        "1\tmuy\tmucho\tADV\t_\t_\t2\tadvmod\t_\t_\n2\tbueno\tbueno\tADJ\t_\t_\t0\troot\t_\t_\n\n", encoding="utf-8"
+    )
+    assert not es.parse_stale(str(src), str(dst))
+    # a correct_tokens change that keeps the token count still outdates the parse
+    src.write_text("muy_ADV_mucho bueno_INTJ_bueno\n", encoding="utf-8")
+    assert es.parse_stale(str(src), str(dst))
+
+
+def test_worker_pool_fails_instead_of_respawning(monkeypatch):
+    import functools
+    import os
+
+    import extract_stanza as es
+
+    monkeypatch.delenv("OMP_NUM_THREADS", raising=False)
+    with es._start_pool(1, functools.partial(int, "1")) as pool:
+        assert pool.apply(os.getenv, ("OMP_NUM_THREADS",)) == "1"
+    with es._start_pool(1, functools.partial(int, "not a number")) as pool, pytest.raises(RuntimeError, match="failed"):
+        list(pool.imap_unordered(es._tag_file, [("in.txt", "out.txt")]))

@@ -23,7 +23,7 @@ python pipeline/extract_stanza.py --xlsx --csv           # also write xlsx and c
 
 Dialect-specific corrections live in `pipeline/dialects/` (one file per dialect) and are off unless named with `--dialect`: `pr` for Puerto Rican lateralized /r/ (*cielto*, *celca*), `co` for Colombian *chévere* spellings, *entoes* and dropped d (*complicao*). The corpus needs both; see [`rules.md`](rules.md#dialect-corrections-pipelinedialects). The Colab job applies both before parsing.
 
-After changing `correct_tokens`, delete `data/stanza_parsed/` so the parse reads the new tags. On a CPU, set `OMP_NUM_THREADS=1` or each worker spins 8 threads.
+After changing `correct_tokens`, the next run reparses only the files whose corrected tags no longer match their parse; a handful of files parse fine on a CPU (the demo interview takes about 45 s and 2.3 GB). Workers run single-threaded (`OMP_NUM_THREADS=1` unless set), and a worker that cannot load its models stops the run instead of restarting forever.
 
 Every cleaning rule, tag correction and extraction rule, with token counts: [`rules.md`](rules.md).
 
@@ -38,4 +38,4 @@ cp -r data/colab/data/stanza_* data/    # once sync.log says DONE
 python pipeline/extract_stanza.py --dialect pr --dialect co    # tags and parses nothing new, just extracts
 ```
 
-Only files missing from `data/stanza_tagged` or `data/stanza_parsed` are processed, so to redo some transcripts delete their files from both. `sync.sh` (started by `start.sh`) pulls finished files back every 10 minutes and, since free VMs get preempted, starts a new VM from them after three failed pulls. It stops the VM when the job is done.
+Only files missing from `data/stanza_tagged` or `data/stanza_parsed`, and parses outdated by a `correct_tokens` change, are processed, so to redo some transcripts delete their files from both. `sync.sh` (started by `start.sh`) pulls finished files back every 10 minutes and, since free VMs get preempted, starts a new VM from them after three failed pulls. It stops the VM when the job is done.

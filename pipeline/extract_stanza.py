@@ -27,11 +27,14 @@ processors = {
 # the parse reruns the tagger on stanza_corrected words only for xpos/feats
 parse_tagger = {"tokenize": "combined_charlm", "pos": "combined_bertin-roberta"}
 parse_processors = {"depparse": "combined_bertin-roberta"}
+# what the bertin-roberta pos and depparse models load from the HF hub
+bert_model = "bertin-project/bertin-roberta-base-spanish"
 
 # plural -es stripped one letter too far (chéveres -> chéver)
 lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
 
 _nlp = None
+_init_error = None
 
 
 def clean_field(text):
@@ -482,6 +485,37 @@ def to_conllu(doc):
     )
 
 
+def _fetch_models(stanza_processors):
+    import stanza
+    from transformers import AutoModel, AutoTokenizer
+
+    stanza.download("es", package=None, processors=stanza_processors, verbose=False)
+    # a failed hub fetch inside a spawn worker kills the initializer, and the Pool respawns it forever
+    AutoTokenizer.from_pretrained(bert_model)
+    AutoModel.from_pretrained(bert_model)
+
+
+def _start_pool(workers, initializer):
+    # spawned workers inherit the env; torch and BLAS read it at import, before set_num_threads runs
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    # spawn, since forking after the parent touched CUDA (stanza import on a GPU box) fails
+    return get_context("spawn").Pool(workers, initializer=_guarded_init, initargs=(initializer,))
+
+
+def _guarded_init(load):
+    # an initializer that raises makes the Pool respawn the worker forever; the first task re-raises instead
+    global _init_error
+    try:
+        load()
+    except Exception as e:  # noqa: BLE001 - any load failure must reach the parent
+        _init_error = e
+
+
+def _check_init():
+    if _init_error is not None:
+        raise RuntimeError("stanza worker failed to load") from _init_error
+
+
 def _init_parser():
     global _nlp
     import stanza
@@ -495,7 +529,17 @@ def _init_parser():
     )
 
 
+def parse_stale(src, dst):
+    """parse_stale tells whether dst is missing or no longer matches the words, upos and lemmas of src."""
+    if not os.path.exists(dst):
+        return True
+    tags = [t for s in read_corrected(src) for t in s]
+    parsed = [(w.text, w.upos, w.lemma) for s in read_conllu(dst) for w in s]
+    return tags != parsed
+
+
 def _parse_file(paths):
+    _check_init()
     src, dst = paths
     chunks = [c for s in read_corrected(src) for c in chunk_sentence(s)]
     # an interview shorter than the skipped opening has no text left, and Stanza returns a bare list for no input
@@ -517,23 +561,24 @@ def _parse_file(paths):
 
 
 def parse_folder(input_folder, output_folder, workers):
-    import stanza
-
     os.makedirs(output_folder, exist_ok=True)
     for name in os.listdir(output_folder):
         if name.endswith(".part"):
             os.remove(os.path.join(output_folder, name))
 
-    jobs = [
+    # a parse made from older corrected tags is redone, so changing correct_tokens needs no manual cleanup
+    pairs = [
         (os.path.join(input_folder, name), os.path.join(output_folder, name[:-4] + ".conllu"))
         for name in sorted(os.listdir(input_folder))
-        if name.endswith(".txt") and not os.path.exists(os.path.join(output_folder, name[:-4] + ".conllu"))
+        if name.endswith(".txt")
     ]
-    print(f"Parsing {len(jobs)} files with stanza ({workers} workers)")
+    jobs = [(src, dst) for src, dst in pairs if parse_stale(src, dst)]
+    stale = sum(os.path.exists(dst) for _, dst in jobs)
+    print(f"Parsing {len(jobs)} files with stanza ({stale} outdated, {workers} workers)")
     if not jobs:
         return
-    stanza.download("es", package=None, processors={**parse_tagger, **parse_processors}, verbose=False)
-    with get_context("spawn").Pool(workers, initializer=_init_parser) as pool:
+    _fetch_models({**parse_tagger, **parse_processors})
+    with _start_pool(workers, _init_parser) as pool:
         for i, name in enumerate(pool.imap_unordered(_parse_file, jobs), 1):
             print(f"[{i}/{len(jobs)}] Parsed: {name}")
 
@@ -722,6 +767,7 @@ def _init_worker():
 
 
 def _tag_file(paths):
+    _check_init()
     src, dst = paths
     with open(src, encoding="utf-8") as f:
         paragraphs = [line.strip() for line in f if line.strip()]
@@ -735,8 +781,6 @@ def _tag_file(paths):
 
 
 def tag_folder(input_folder, output_folder, workers):
-    import stanza
-
     os.makedirs(output_folder, exist_ok=True)
     for name in os.listdir(output_folder):
         if name.endswith(".part"):
@@ -752,9 +796,8 @@ def tag_folder(input_folder, output_folder, workers):
     # the pool initializer loads the models even with nothing to do
     if not jobs:
         return
-    stanza.download("es", package=None, processors=processors, verbose=False)
-    # spawn, since forking after the parent touched CUDA (stanza import on a GPU box) fails
-    with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
+    _fetch_models(processors)
+    with _start_pool(workers, _init_worker) as pool:
         for i, name in enumerate(pool.imap_unordered(_tag_file, jobs), 1):
             print(f"[{i}/{len(jobs)}] Tagged: {name}")
 
