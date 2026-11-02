@@ -766,7 +766,7 @@ def merge_speaker_data(id_df, int_df):
             transformed_data.append(merged_row)
 
     transformed_df = pd.DataFrame(transformed_data)
-    print("Speaker data merged into intensifer data")
+    print("Speaker data merged into intensifier data")
     return transformed_df
 
 
