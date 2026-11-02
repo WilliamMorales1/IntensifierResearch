@@ -486,7 +486,6 @@ split_words = {
     ("cuida", "do"): ("ADJ", "cuidado"),
     ("horri", "bles"): ("ADJ", "horrible"),
     ("bue", "no"): ("ADJ", "bueno"),
-    ("má", "s"): ("ADV", "más"),
     ("entonce", "s"): ("ADV", "entonces"),
     ("automática", "mente"): ("ADV", "automáticamente"),
     ("actual", "mente"): ("ADV", "actualmente"),

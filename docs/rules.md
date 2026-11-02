@@ -63,22 +63,21 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *mucho* + nominalized ADJ outside a copula (*pasa mucho vicioso*; ~35) | masc. sg. -> NOUN unless after AUX, a copula, *poner/volver/seguir* or a repeated *mucho* |
 | nouns used as adjectives after *muy* (*muy amigo*, *muy niña*; ~75) | ADJ when longer than 3 letters and not a real noun (*muy falta de*, *muy parte de*) |
 | participle lemma = verb (*dado* -> *dar*) | masc. sg. form |
-| *chéveres* -> *chéver*, *chevere*, *gritono* | *chévere*, *gritón* |
+| *chéveres* -> *chéver*, *chevere* | *chévere* |
 | 1sg *vivo* (= I live) as ADJ (199) | VERB *vivir* unless after DET, AUX, a verb, an intensifier or *lo/tan/más/en*; 143 flipped |
 | adverbial *primero* (*pues primero se prepara*; 151) | ADV unless after DET, ADP, AUX, NOUN, *lo* or a predicative verb, before NOUN/ADJ, or *primero y segundo* |
-| compound nouns *medio ambiente*, *sala comedor*, *hora pico*, *ciclo vía*, *Estados Unidos*, *ave María* | NOUN/PROPN |
+| compound nouns *hora pico*, *Estados Unidos*, *ave María* | NOUN/PROPN |
 | *cuarto* (room, quarter hour) ADJ (103) | NOUN unless before a noun (*cuarto piso*) |
 | *debido a* (61), *junto a/con* (34) | ADP, ADV |
 | *total que*, *bueno total* (= anyway; 30) | ADV; *cambio total* kept |
 | *seguro que* (= surely; 12) | ADV unless after AUX, DET, NOUN, a predicative verb or an intensifier |
 | *medio día*, *media noche* (25), *ocho y media* (4) | NOUN, NUM |
-| misspelled *echar* (*se le hecha*; 6) | VERB after a clitic |
 | *puro/solo* + bare noun (*era puro barro*, *comiendo solo pescado*; 141) | *puro* DET, *solo* ADV; *aire puro*, *una sola casa* kept |
 | adverbial *mismo* (*ahí/ahora/aquí/así mismo*; 231) | ADV; *uno mismo*, *lo mismo* kept |
 | lowercase *santo/santa* in names (*semana santa*, *espíritu santo*; 59) | PROPN; *todo el santo día* kept |
 | mid-sentence capitalized ADJ (*Villa Nueva*), *nueva york* (36) | PROPN |
 | enclitic imperatives as ADJ (*digámoslo*, *respétala*; ~40) | VERB |
-| *tengo entendido* (25), *yo saludo* (16), *a menudo* (8) | VERB *entender*, VERB *saludar*, ADV |
+| *tengo entendido* (25), *a menudo* (8) | VERB *entender*, ADV |
 | *-ísimo* adjectives as ADV (*contrato jugosísimo*) | ADJ unless an adverb base (*muchísimo*, *lejísimos*) |
 | *-ona* lemmas as *-ono* or *-on* (*mamona* -> *mamon*, *cansonas*; ~20 types) | lemma *-ón* unless *mono*, *monótono*, *autóctono*, *-ciona* |
 | vocative *hermano* ADJ | NOUN |
@@ -94,7 +93,7 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *más bien* + host | host kept, no intensifier |
 | *mucho, bien, casi, bastante, demasiado, harto*, *-mente* intensifiers the parse hangs on a verb, not on the host (*se cansara mucho acostada*, *comiendo mucho afuera*, *ver bien tranquilamente*, *habla mucho aquí*) | host kept, no intensifier (`verbal_int` in `sentence_relations`), unless the host is an ADJ under *ser/estar/parecer/quedar/sentir* (*quede bien limpiecita*). *muy, tan, súper* never grade verbs and are left alone. 12 intensified rows changed and 101 bare adverb rows added (they were dropped as intensified non-gradable before). Hand check of the 12: 9 right, 2 unclear (*iba bien amarrada*), 1 wrong (*vive bien mal*) |
 | *mucho* + ADJ after a lexical verb (*compartimos mucho juntos*, *disfrutaran mucho necesario*) or + participle after *estar* (*he estado mucho hospitalizada*, = often) | host kept, no intensifier: *mucho* grades the verb or counts how often. 3 rows. *era mucho chusco*, *mucho mucho raro era* (dialectal *mucho* = *muy*) stay intensified |
-| words split by the transcriber (*muy distin to*, *tan lejo s*, *muy calma do*, *bien cuida do*, *muy bue no*, *horri bles*, *entonce s*, *má s*, *actual mente*) | rejoined before extraction (`split_words`, `join_splits` in `analyze`; the second piece's parse entry is dropped, so no retag). *bue no* only after an intensifier (*son bue no son buenos* is a restart); *mucho cuida do* stays NOUN. 8 rows changed (5 intensified: *distinto* x2, *lejos* x2, *calmado*, *bueno*, *cuidado*; junk hosts *distin*, *lejo*, *calmo*, *ble* gone), 8 bare rows added (*entonces* x5, *horrible*, *calmado*, *actualmente*) |
+| words split by the transcriber (*muy distin to*, *tan lejo s*, *muy calma do*, *bien cuida do*, *muy bue no*, *horri bles*, *entonce s*, *actual mente*) | rejoined before extraction (`split_words`, `join_splits` in `analyze`; the second piece's parse entry is dropped, so no retag). *bue no* only after an intensifier (*son bue no son buenos* is a restart); *mucho cuida do* stays NOUN. 8 rows changed (5 intensified: *distinto* x2, *lejos* x2, *calmado*, *bueno*, *cuidado*; junk hosts *distin*, *lejo*, *calmo*, *ble* gone), 8 bare rows added (*entonces* x5, *horrible*, *calmado*, *actualmente*) |
 | disfluency fragments (*muy bue muy bueno*, *muy d muy rápido*, *muy comple es muy complejo*, *casi nun*) | row dropped |
 | feminine lemmas in *-dora/-tora/-sora* | *acogedora* -> *acogedor* |
 | singular *-s* and invariant *-a* lemmas (*gris*, *francés*, *egoísta*, *paisa*, *-ista*, *-crata*) | kept, not *gri*, *egoísto* |
@@ -159,9 +158,9 @@ Off by default; `--dialect pr --dialect co` turns them on, and the corpus needs 
 
 | Dialect | Error | Fix |
 | --- | --- | --- |
-| `pr` (Puerto Rico, LAPR) | lateralized /r/ (*cielto*, *fuelte*, *impoltante*, *mejol*, *celca*, *estudial*, *polque*, *helmano*; ~80 types) | lemma l -> r; non-adjectives retagged VERB, SCONJ, NOUN, ADV |
-| `co` (Colombia) | dialect *chévere* (*chéere, chevre, chéer*), *conchudo* as VERB/NOUN/PROPN/ADV | ADJ |
-| `co` | dropped intervocalic d (*complicao*, *pesao*, *consentio*, *tímia*; mostly TUNJ) | lemma -ado, -ido |
+| `pr` (Puerto Rico, LAPR) | lateralized /r/ (*cielto*, *fuelte*, *impoltante*, *mejol*, *celca*, *estudial*, *polque*, *helmano*; ~65 types) | lemma l -> r; non-adjectives retagged VERB, SCONJ, NOUN, ADV |
+| `co` (Colombia) | dialect *chévere* (*chevre, chevere*) as VERB/NOUN/PROPN/ADV | ADJ |
+| `co` | dropped intervocalic d (*complicao*, *pesao*, *consentio*; mostly TUNJ) | lemma -ado, -ido |
 | `co` | *entoes* (= *entonces*) as NOUN/VERB/ADJ/PART (291, nearly all TUNJ) | ADV |
 
 Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 rows (16.45% of adjective rows intensified) instead of 100,440 (16.46%) (2026-11-01, 310 transcripts, before the [envelope rules](#intensifier-types-and-the-envelope-of-variation)).

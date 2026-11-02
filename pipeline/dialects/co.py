@@ -3,16 +3,10 @@
 import re
 
 # adjectives the tagger, trained on standard Spanish, often calls NOUN, VERB or ADV
-dialect_adjs = {
-    "chéere": "chévere",
-    "chéer": "chévere",
-    "chevre": "chévere",
-    "chevere": "chévere",
-    "conchudo": "conchudo",
-}
-lemma_fixes = {"chéere": "chévere", "chevre": "chévere", "chéer": "chévere"}
-# dropped intervocalic d in -ido ("consentio", "tímia")
-lemma_fixes |= {"consentio": "consentido", "tímio": "tímido", "conocío": "conocido"}
+dialect_adjs = {"chevre": "chévere", "chevere": "chévere"}
+lemma_fixes = {"chevre": "chévere"}
+# dropped intervocalic d in -ido ("consentio", "conocío")
+lemma_fixes |= {"consentio": "consentido", "conocío": "conocido"}
 
 
 def correct(tokens, i, upos, lemma):

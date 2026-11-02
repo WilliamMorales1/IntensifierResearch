@@ -23,7 +23,7 @@ parse_processors = {"depparse": "combined_bertin-roberta"}
 bert_model = "bertin-project/bertin-roberta-base-spanish"
 
 # plural -es stripped one letter too far (chéveres -> chéver)
-lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere", "gritono": "gritón"}
+lemma_fixes = {"chéver": "chévere", "chever": "chévere", "chevere": "chévere"}
 
 _nlp = None
 _init_error = None
@@ -106,14 +106,10 @@ ono_adjs = {"mono", "nono", "monótono", "autóctono"}
 muy_nouns = {"gente", "cosas", "parte", "falta", "toma", "pulpa", "maleza", "masa", "carga", "calma", "dema", "ente"}
 # second halves of compound nouns the tagger reads as noun + adjective
 compound_nouns = {
-    ("medio", "ambiente"): "NOUN",
-    ("sala", "comedor"): "NOUN",
-    ("salón", "comedor"): "NOUN",
     ("hora", "pico"): "NOUN",
     ("horas", "pico"): "NOUN",
     ("estados", "unidos"): "PROPN",
     ("ave", "maría"): "PROPN",
-    ("ciclo", "vía"): "NOUN",
 }
 
 # "semana santa", "espíritu santo", "santa rita": holy days and saint names, not "todo el santo día"
@@ -344,13 +340,10 @@ def correct_tokens(tokens, dialects=()):
             and tokens[i - 2][0].lower() == "por"
         ):
             upos = "ADV"
-        # "yo saludo a mi novia"
-        elif upos == "ADJ" and low == "saludo":
-            upos, lemma = "VERB", "saludar"
-        elif upos == "ADJ" and low == "mismo" and i > 0 and tokens[i - 1][0].lower() in mismo_advs:
-            upos = "ADV"
         elif upos == "ADJ" and i > 0 and (tokens[i - 1][0].lower(), low) in compound_nouns:
             upos = compound_nouns[(tokens[i - 1][0].lower(), low)]
+        elif upos == "ADJ" and low == "mismo" and i > 0 and tokens[i - 1][0].lower() in mismo_advs:
+            upos = "ADV"
         # "mi cuarto", "menos cuarto" (room, quarter hour) vs "cuarto piso"
         elif upos == "ADJ" and (
             low == "estrato" or low == "cuarto" and _around(tokens, i)[1][1] not in ("NOUN", "PROPN")
@@ -374,14 +367,6 @@ def correct_tokens(tokens, dialects=()):
             upos = "NOUN"
         elif upos == "ADJ" and low == "vivo" and _verb_vivo(tokens, i):
             upos, lemma = "VERB", "vivir"
-        # "se le hecha", "le hechas una cucharada": misspelled echar
-        elif (
-            upos == "ADJ"
-            and re.fullmatch(r"hech[oa]s?|hechan", low)
-            and i > 0
-            and tokens[i - 1][0].lower() in ("se", "le", "les", "me", "te", "nos")
-        ):
-            upos, lemma = "VERB", "echar"
         elif upos == "ADJ" and low == "debido" and _around(tokens, i)[1][0].lower() in ("a", "al"):
             upos = "ADP"
         elif upos == "ADJ" and low == "junto" and _around(tokens, i)[1][0].lower() in ("a", "al", "con", "de", "e"):
