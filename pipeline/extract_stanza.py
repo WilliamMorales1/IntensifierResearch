@@ -539,7 +539,7 @@ def parse_folder(input_folder, output_folder, workers):
 
 
 Dep = namedtuple("Dep", "id text upos lemma head deprel")
-Relations = namedtuple("Relations", "adj_type noun verb inf_verb negation")
+Relations = namedtuple("Relations", "adj_type noun verb inf_verb negation verbal_int")
 
 
 def read_conllu(path):
@@ -624,21 +624,60 @@ def adjective_relation(sent, w):
     return "ambiguous", "/"
 
 
-def negation(sent, w):
-    """negation returns the negator before w in its clause (no es tan bueno, no me parece muy bonito), or "/"."""
+def _clause(sent, w):
     # no muy bueno: the parser can hang the negator on the intensifier
-    heads = {w.id} | {c.id for c in _children(sent, w, "advmod")}
+    ids = {c.id for c in _children(sent, w, "advmod")}
     x = w
     while x is not None:
-        for c in sent:
-            if c.head in heads and c.id < w.id and c.text.lower() in negators:
-                return c.text.lower()
+        ids.add(x.id)
         # the first verb or predicate up the chain closes the clause
         if (x is not w and x.upos in ("VERB", "AUX")) or _children(sent, x, "cop"):
             break
         x = _head(sent, x)
-        heads = {x.id} if x is not None else set()
+    return ids
+
+
+def _infinitive(sent, w):
+    return any(x.text.lower() == x.lemma for x in [w, *_children(sent, w, "cop")] if x.upos in ("VERB", "AUX"))
+
+
+def _negates(sent, neg, clause):
+    # preverbal no sits right before its verb, clitics, copula or intensifier; discourse no
+    # (no , muy buena ; no la gente es muy buena ; no sé ellos fueron bien abiertos) does not
+    k = neg.id
+    while k < len(sent) and sent[k].text.lower() in clitics:
+        k += 1
+    if k >= len(sent):
+        return False
+    t = sent[k]
+    # no una casa tan grande, no en ese nivel tan extremo: constituent negation of the host's phrase
+    if t.head in clause and t.deprel.split(":")[0] in ("cop", "aux", "advmod", "det", "case"):
+        return True
+    # no se tenga que desplazar tan lejos, no tiene que estar tan preocupada: t governs the clause's infinitive
+    if t.upos in ("VERB", "AUX") and any(sent[c - 1].head == t.id and _infinitive(sent, sent[c - 1]) for c in clause):
+        return True
+    # ni tan aficionado: the parser fixes tan to ni
+    return t.id in clause or (t.head == neg.id and t.deprel == "fixed")
+
+
+def negation(sent, w):
+    """negation returns the negator before w in its clause (no es tan bueno, no me parece muy bonito), or "/"."""
+    clause = _clause(sent, w)
+    for c in reversed(sent[: w.id - 1]):
+        if c.head in clause and c.text.lower() in negators and _negates(sent, c, clause):
+            return c.text.lower()
     return "/"
+
+
+def verbal_intensifier(sent, w):
+    """verbal_intensifier tells whether the word before w hangs on a verb, not on w (se cansara mucho acostada)."""
+    if w.id < 2:
+        return False
+    head = _head(sent, sent[w.id - 2])
+    if head is None or head is w or head.upos not in ("VERB", "AUX"):
+        return False
+    # quede bien limpiecita: before a predicative adjective the adverb grades the adjective
+    return not (w.upos == "ADJ" and head.lemma in copular_verbs)
 
 
 def sentence_relations(sent):
@@ -652,7 +691,14 @@ def sentence_relations(sent):
         adj_type, noun = adjective_relation(sent, w)
         verb = governing_verb(sent, w)
         out.append(
-            Relations(adj_type, noun, verb.text if verb else "/", verb.lemma if verb else "/", negation(sent, w))
+            Relations(
+                adj_type,
+                noun,
+                verb.text if verb else "/",
+                verb.lemma if verb else "/",
+                negation(sent, w),
+                verbal_intensifier(sent, w),
+            )
         )
     return out
 

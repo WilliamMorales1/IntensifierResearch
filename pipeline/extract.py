@@ -437,7 +437,30 @@ def retag(words):
     return out
 
 
-def _modifier(words, i, degree):
+# adverbs that also modify verbs; muy, tan, súper cannot, so a parse hanging them on a verb is wrong
+verbal_intensifiers = {
+    "mucho",
+    "bien",
+    "casi",
+    "bastante",
+    "demasiado",
+    "harto",
+    "realmente",
+    "verdaderamente",
+    "absolutamente",
+    "completamente",
+    "totalmente",
+    "plenamente",
+    "especialmente",
+}
+
+
+def _verbal(word, relations):
+    # se cansara mucho acostada, me siento bien así: the adverb grades the verb, the host is bare
+    return relations is not None and relations.verbal_int and get_int(word) in verbal_intensifiers
+
+
+def _modifier(words, i, degree, relations=None):
     # (Int, Double) for the host at i, or None when the row leaves the envelope of variation
     k = i - 1
     if k < 0:
@@ -449,7 +472,7 @@ def _modifier(words, i, degree):
             return None
         if _text(words[k]) == "menos":
             return "más o menos", "/"
-    elif not is_int(words[k]) or is_mas_bien(words, i):
+    elif not is_int(words[k]) or is_mas_bien(words, i) or _verbal(words[k], relations):
         return "/", "/"
     double = "/"
     if k > 0 and (is_int(words[k - 1]) or _is_degree_int(words, k - 1, degree)):
@@ -491,7 +514,7 @@ def process_segment(segment, speaker, parse=None, degree=None):
                 noun = "/"
 
             # muy bueno, muy muy bueno; None for no muy bueno, más bueno que
-            modifier = _modifier(words, i, degree)
+            modifier = _modifier(words, i, degree, parse[i] if parse else None)
             if modifier is None:
                 continue
             intensifier, double = modifier
@@ -544,7 +567,7 @@ def process_segment(segment, speaker, parse=None, degree=None):
             isimo_base = strip_isimo_adv(adverb)
 
             # muy lejos
-            modifier = _modifier(words, i, degree)
+            modifier = _modifier(words, i, degree, parse[i] if parse else None)
             if modifier is None or adverb in comparatives:
                 continue
             intensifier, double = modifier

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from extract import analyze, write_outputs
+from extract import analyze, process_segment, write_outputs
 from extract_stanza import (
     Dep,
     chunk_sentence,
@@ -334,13 +334,13 @@ parsed = (
 def test_sentence_relations(tmp_path):
     (tmp_path / "S01.conllu").write_text(parsed, encoding="utf-8")
     first, second, third = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
-    assert first[4] == ("predicative", "casa", "es", "ser", "/")
-    assert first[6] == ("predicative", "casa", "es", "ser", "/")
-    assert first[3] == ("ambiguous", "/", "es", "ser", "/")
+    assert first[4] == ("predicative", "casa", "es", "ser", "/", False)
+    assert first[6] == ("predicative", "casa", "es", "ser", "/", False)
+    assert first[3] == ("ambiguous", "/", "es", "ser", "/", False)
     assert first[0] is None
     # object is a pronoun, so no noun
-    assert second[3] == ("predicative", "/", "veo", "ver", "/")
-    assert third[4] == ("attributive", "casas", "vivo", "vivir", "/")
+    assert second[3] == ("predicative", "/", "veo", "ver", "/", False)
+    assert third[4] == ("attributive", "casas", "vivo", "vivir", "/", False)
     assert third[6][2:4] == ("vivo", "vivir")
 
 
@@ -352,7 +352,7 @@ def test_noun_parsed_before_correction_gets_relation():
         Dep(3, "muy", "ADV", "mucho", 4, "advmod"),
         Dep(4, "amigo", "NOUN", "amigo", 0, "root"),
     ]
-    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser", "/")
+    assert sentence_relations(sent)[3] == ("predicative", "/", "es", "ser", "/", False)
 
 
 def test_verb_parsed_before_correction_is_not_its_own_verb():
@@ -362,7 +362,7 @@ def test_verb_parsed_before_correction_is_not_its_own_verb():
         Dep(2, "muy", "ADV", "mucho", 3, "advmod"),
         Dep(3, "chéere", "VERB", "chévere", 0, "root"),
     ]
-    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser", "/")
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fue", "ser", "/", False)
 
 
 def test_adverb_parsed_before_correction_gets_relation():
@@ -374,7 +374,7 @@ def test_adverb_parsed_before_correction_gets_relation():
         Dep(4, "muy", "ADV", "mucho", 5, "advmod"),
         Dep(5, "chevre", "ADV", "chévere", 3, "advmod"),
     ]
-    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer", "/")
+    assert sentence_relations(sent)[4] == ("predicative", "/", "parece", "parecer", "/", False)
 
 
 def test_predicative_subject_is_nearest(tmp_path):
@@ -390,7 +390,7 @@ def test_predicative_subject_is_nearest(tmp_path):
         encoding="utf-8",
     )
     (sent,) = read_conllu(tmp_path / "S01.conllu")
-    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser", "/")
+    assert sentence_relations(sent)[2] == ("predicative", "/", "fui", "ser", "/", False)
 
 
 def test_adjective_under_copular_verb_is_predicative(tmp_path):
@@ -411,7 +411,7 @@ def test_adjective_under_copular_verb_is_predicative(tmp_path):
         encoding="utf-8",
     )
     first, second = (sentence_relations(s) for s in read_conllu(tmp_path / "S01.conllu"))
-    assert first[3] == ("predicative", "comida", "queda", "quedar", "/")
+    assert first[3] == ("predicative", "comida", "queda", "quedar", "/", False)
     assert second[3].adj_type == "ambiguous"
 
 
@@ -614,3 +614,67 @@ def test_negation_scope():
         ],
     ]
     assert [sentence_relations(s)[-1].negation for s in sents] == ["no", "no", "no", "/"]
+
+
+def test_negation_needs_preverbal_slot():
+    # no , muy buena ; no la gente es muy buena ; no una casa tan grande ; ni tan aficionado ;
+    # no se tenga que desplazar tan lejos
+    sents = [
+        [
+            Dep(1, "no", "ADV", "no", 4, "advmod"),
+            Dep(2, ",", "PUNCT", ",", 4, "punct"),
+            Dep(3, "muy", "ADV", "mucho", 4, "advmod"),
+            Dep(4, "buena", "ADJ", "bueno", 0, "root"),
+        ],
+        [
+            Dep(1, "no", "ADV", "no", 6, "advmod"),
+            Dep(2, "la", "DET", "el", 3, "det"),
+            Dep(3, "gente", "NOUN", "gente", 6, "nsubj"),
+            Dep(4, "es", "AUX", "ser", 6, "cop"),
+            Dep(5, "muy", "ADV", "mucho", 6, "advmod"),
+            Dep(6, "buena", "ADJ", "bueno", 0, "root"),
+        ],
+        [
+            Dep(1, "no", "ADV", "no", 3, "advmod"),
+            Dep(2, "una", "DET", "uno", 3, "det"),
+            Dep(3, "casa", "NOUN", "casa", 0, "root"),
+            Dep(4, "tan", "ADV", "tan", 5, "advmod"),
+            Dep(5, "grande", "ADJ", "grande", 3, "amod"),
+        ],
+        [
+            Dep(1, "ni", "CCONJ", "ni", 3, "advmod"),
+            Dep(2, "tan", "ADV", "tan", 1, "fixed"),
+            Dep(3, "aficionado", "ADJ", "aficionado", 0, "root"),
+        ],
+        [
+            Dep(1, "no", "ADV", "no", 5, "advmod"),
+            Dep(2, "se", "PRON", "él", 5, "expl:pv"),
+            Dep(3, "tenga", "VERB", "tener", 0, "root"),
+            Dep(4, "que", "SCONJ", "que", 5, "mark"),
+            Dep(5, "desplazar", "VERB", "desplazar", 3, "conj"),
+            Dep(6, "tan", "ADV", "tan", 7, "advmod"),
+            Dep(7, "lejos", "ADV", "lejos", 5, "advmod"),
+        ],
+    ]
+    assert [sentence_relations(s)[-1].negation for s in sents] == ["/", "/", "no", "ni", "no"]
+
+
+def test_verbal_intensifier():
+    # se cansara mucho acostada ; quede bien limpiecita
+    cansara = [
+        Dep(1, "se", "PRON", "él", 2, "expl:pv"),
+        Dep(2, "cansara", "VERB", "cansar", 0, "root"),
+        Dep(3, "mucho", "ADV", "mucho", 2, "advmod"),
+        Dep(4, "acostada", "ADJ", "acostado", 2, "xcomp"),
+    ]
+    quede = [
+        Dep(1, "quede", "VERB", "quedar", 0, "root"),
+        Dep(2, "bien", "ADV", "bien", 1, "advmod"),
+        Dep(3, "limpiecita", "ADJ", "limpiecito", 1, "xcomp"),
+    ]
+    assert sentence_relations(cansara)[3].verbal_int
+    assert not sentence_relations(quede)[2].verbal_int
+    rows = process_segment(
+        "se_PRON_él cansara_VERB_cansar mucho_ADV_mucho acostada_ADJ_acostado", "S01", sentence_relations(cansara)
+    )
+    assert [(r["Int"], r["Adj"]) for r in rows] == [("/", "acostada")]
