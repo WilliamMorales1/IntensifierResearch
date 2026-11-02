@@ -39,7 +39,7 @@ The 1,120-word cut is minute 10 of the interview, converted to words from this c
 
 Word equivalent: informant words before the interpolated `<tiempo>` stamp, 190 MEDE and TCali files: 10:00 median 1,122 (middle half 952-1,269), used as 1,120; 5:00 median 512 (middle half 437-594), used as 510 by `--start-minute 5` (start of the interrogative-tag and evidentiality windows); 15:00 = 1,724. LAPR has no docx: for minute 5, cut 160 words from `data/text_pre_reclean/LAPR_*` (already cut at 350), not from `data/text`.
 
-## Stanza corrections (`correct_tokens` in `pipeline/extract_stanza.py`)
+## Stanza corrections (`correct_tokens` in `pipeline/annotate.py`)
 
 Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/stanza_corrected`.
 
@@ -159,7 +159,7 @@ Off by default; `--dialect pr --dialect co` turns them on, and the corpus needs 
 
 Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 rows (16.45% of adjective rows intensified) instead of 100,440 (16.46%) (2026-11-01, 310 transcripts, before the [envelope rules](#intensifier-types-and-the-envelope-of-variation)).
 
-## Adj_type, Noun and Verb (`sentence_relations` in `pipeline/extract_stanza.py`)
+## Adj_type, Noun and Verb (`sentence_relations` in `pipeline/annotate.py`)
 
 | Parse | Adj_type | Noun |
 | --- | --- | --- |

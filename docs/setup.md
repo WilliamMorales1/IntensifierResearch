@@ -14,7 +14,7 @@ conda activate intensifier-research
 ```fish
 uv sync
 uv run python -m pytest -q
-uv run python pipeline/extract_stanza.py
+uv run python pipeline/run.py
 ```
 
 **venv + pip** (pip 25.1+ for `--group`):

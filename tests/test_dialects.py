@@ -1,9 +1,9 @@
 import pytest
 
 import dialects
+from annotate import correct_line
 from dialects import co, pr
 from extract import process_segment
-from extract_stanza import correct_line
 
 pr_cases = [
     ("muy_ADV_mucho celca_ADJ_celca", "muy_ADV_mucho celca_ADV_cerca"),
