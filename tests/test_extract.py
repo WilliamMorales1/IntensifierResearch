@@ -18,12 +18,6 @@ from extract import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _isolate_cwd(tmp_path, monkeypatch):
-    # get_adj appends re- words to output/re-words.txt under the working directory.
-    monkeypatch.chdir(tmp_path)
-
-
 def token(segment):
     rows = process_segment(segment, "S01")
     assert len(rows) == 1, rows
@@ -563,4 +557,4 @@ def test_write_outputs_without_speakers_adds_no_metadata(tmp_path):
 
     assert "Gender" not in df.columns
     assert (tmp_path / "out.sqlite").exists()
-    assert (tmp_path / "out_re-words.txt").read_text(encoding="utf-8").split() == ["rebonita"]
+    assert not (tmp_path / "out_re-words.txt").exists()

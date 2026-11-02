@@ -10,9 +10,6 @@ import pandas as pd
 
 from dialects.pr import delateralize
 
-# re- hosts seen by the last analyze, for a hand check
-re_words = []
-
 intensifier_list = [
     "absolutamente",
     "bastante",
@@ -178,10 +175,6 @@ def is_adj(word):
     return bool(adj_match and lex_adj_match and is_well_formed(word) and not word.endswith("mente"))
 
 
-def log_re_word(word):
-    re_words.append(word)
-
-
 def deaccent(word):
     return word.translate(str.maketrans("áéíóú", "aeiou"))
 
@@ -208,10 +201,6 @@ def get_adj(word):
     ):
         lex_adjective = lex_adjective[:-1] + "o"
 
-    # write re adjectives that could be with the re- intensifier
-    if adjective.startswith("re"):
-        log_re_word(adjective)
-
     return adjective.lower(), lex_adjective.lower()
 
 
@@ -226,8 +215,6 @@ def is_adv(word):
 def get_adv(word):
     adv_match = re.search(r"^(.*)_ADV_(.*)", word)
     adverb, lemma = adv_match.group(1), adv_match.group(2)  # type: ignore
-    if adverb.startswith("re"):
-        log_re_word(adverb)
     # lemma set by the pr dialect rules (celca -> cerca, talde -> tarde)
     if lemma.lower() != adverb.lower() and delateralize(adverb.lower()) == lemma.lower():
         return lemma.lower()
@@ -732,8 +719,6 @@ def analyze(input_path, output_filename=None, parses=None, drop_invariant=False)
     # Create a list to store data frames
     data_frames = []
 
-    re_words.clear()
-
     # Iterate over marked files in the input folder
     for filename in sorted(f for f in os.listdir(input_path) if f.endswith(".txt")):
         # SPEAKER
@@ -960,7 +945,7 @@ def to_sqlite(df, output_filename):
 
 
 def write_outputs(df, output, speaker_path=None, xlsx=False, csv=False):
-    """write_outputs adds Number and Syllable, merges speaker metadata if given, and saves output.sqlite, output_re-words.txt if any and optional xlsx and csv."""
+    """write_outputs adds Number and Syllable, merges speaker metadata if given, and saves output.sqlite and optional xlsx and csv."""
     number_counts = {}
     df["Number"] = df.apply(numero, axis=1, count_dict=number_counts)
     df["Syllable"] = df["Adj"].apply(count_syllables)
@@ -972,10 +957,6 @@ def write_outputs(df, output, speaker_path=None, xlsx=False, csv=False):
         df[col] = df[col].str.replace(",", "", regex=False)
 
     to_sqlite(df, output + ".sqlite")
-    if re_words:
-        with open(output + "_re-words.txt", "w", encoding="utf-8") as f:
-            f.writelines(word + "\n" for word in re_words)
-        print(f"re- words saved to {output}_re-words.txt")
     if xlsx:
         df.to_excel(output + ".xlsx", index=False)
         print(f"Saved {output}.xlsx")
