@@ -571,3 +571,14 @@ def test_examples_reproduce_their_output(tmp_path):
     assert (tmp_path / "out.csv").read_text(encoding="utf-8") == (examples / "intensifier_data.csv").read_text(
         encoding="utf-8"
     )
+
+
+def test_parse_file_empty_text_writes_empty_parse(tmp_path):
+    src, dst = tmp_path / "short.txt", tmp_path / "short.conllu"
+    src.write_text("", encoding="utf-8")
+
+    import extract_stanza as es
+
+    assert es._parse_file((str(src), str(dst))) == "short.txt"
+    assert dst.read_text(encoding="utf-8") == ""
+    assert es.read_conllu(str(dst)) == []

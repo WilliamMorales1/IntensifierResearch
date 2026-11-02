@@ -8,7 +8,14 @@ Only text marked by a speaker label is removed. Unlabeled questions stay, even w
 
 | Case | Handling |
 | --- | --- |
-| docx turns | `A:` turns kept (`B:` for files starting `21`), other labeled turns dropped |
+| docx text | paragraphs plus table cells (Tunja generations 2-3 put the dialogue in a table); line-number cells skipped |
+| compilation docx (several *Informante Nº* sections, e.g. `34-Informante`) | only the section whose number is the first number in the file name |
+| Cartagena turns | `A:` or `B:` turns, whichever has more words (the informant; `B` only in `TrCTG_H21`), other labeled turns dropped |
+| PRESEEA header (Medellín, Cali, Tunja) | everything through the last `codigo_hab` line dropped, plus the `E: Entrevistador` legend |
+| PRESEEA turns | `I` turns kept; labels `E:`, `I.:`, `e:`, colon-less line-initial `E.`/`I.` (Tunja), mid-line `E:`; every other header code (`A1`, `B`, ...) dropped |
+| PRESEEA unlabeled line after an interviewer question (`E: ¿...?` then a line with no label) | informant's answer with its label missing (~360 words) |
+| PRESEEA markup (`<alargamiento/>`, `<énfasis>...</énfasis>`, `<tiempo .../>`), stray `<`, `>`, `====` | tags removed, enclosed words kept |
+| PRESEEA pauses `/`, `//` | `,` and `.` |
 | parentheticals (*(risas)*), `•`, `·` | removed |
 | one-line transcripts (LAPR, TUNJ) with turn labels | participant label = `I` if present, else the label used 20+ times; other labeled turns (interviewer, `X` third voice) dropped up to the next label, or through their question(s) when the participant answers on without a label (`E.: ... ¿cuántos años llevan juntos?, me decía ...`) |
 | line-based transcripts (TCali, MEDE) | every labeled line is someone else (interviewer, relative, radio) and is dropped |
@@ -16,7 +23,20 @@ Only text marked by a speaker label is removed. Unlabeled questions stay, even w
 | interviewer line labels `E.`, `E..`, `E:`, `e:`, `E ¿` | whole line dropped; lowercase `e ¿`, `e.` are the filler *eh* and stay |
 | participant line labels `I.`, `i:`, `B.` | label dropped, words kept |
 | remaining participant labels (`J: -pues`) | label dropped |
-| first 350 words | dropped (`--skip-words`) |
+| first 1,120 informant words (~ minute 10; `--start-minute 5` drops 510 instead) | dropped (`--start-minute`, or an exact `--skip-words`), only in files cleaned this run. Minute 10 is where the PRESEEA subject-pronoun (10-20) and attenuation (10-40) guides start, since the opening is the most formal stretch (see [Interview start](#interview-start)); 1,120 = median informant words at the 10:00 stamp in the 190 time-stamped MEDE/TCali files (middle half 952-1,269). One word count for every file because Tunja and Cartagena have no stamps. LAPR (no docx, already cut at 350) cut 770 more by hand on 2026-11-01. Interviews shorter than the cut are left empty, no exemption (`MEDE_H01_1`, 23 min) |
+
+### Interview start
+
+The 1,120-word cut is minute 10 of the interview, converted to words from this corpus's own time stamps. Minute 10 is where the PRESEEA guides for subject pronouns and attenuation start; the others start at minute 5 or 0. The first 10 minutes are treated as the most formal stretch (Guerrero González et al. 2024), the observer's paradox of Labov (1972).
+
+- Labov, W. (1972). *Sociolinguistic Patterns*. Philadelphia: University of Pennsylvania Press, p. 209 (observer's paradox).
+- Guerrero González, S. & Manjón-Cabeza Cruz, A. (2022). *Guía PRESEEA de estudio de la expresión del sujeto pronominal*. Minutes 10-20. <https://preseea.uah.es/sites/default/files/2022-05/Gu%C3%ADa%20PRESEEA%20de%20estudio%20de%20la%20expresi%C3%B3n%20del%20sujeto%20pronominal_Guerrero%20y%20Manj%C3%B3n%20(2022).pdf>
+- Cestero Mancera, A. M. & Rodríguez Alfano, L. (2021). *Guía PRESEEA de estudio de la atenuación*. Minutes 10-40. <https://preseea.uah.es/sites/default/files/2022-02/Gu%C3%ADa%20PRESEEA%20de%20estudio%20de%20la%20atenuaci%C3%B3n_Cestero%20y%20Rodr%C3%ADguez%20%282021%29.pdf>
+- Cestero Mancera, A. M. (2022). *Guía PRESEEA de estudio de apéndices interrogativos de control de contacto*. Minutes 5-40: 5-15 formal, 15-30 middle, 30-40 informal register. <https://preseea.uah.es/sites/default/files/2022-02/Gu%C3%ADa%20PRESEEA%20de%20estudio%20de%20ap%C3%A9ndices%20interrogativos%20de%20control%20de%20contacto_Cestero%20(2022).pdf>
+- Samper Padilla, J. A., Malaver Arguinzones, I. & Samper Hernández, M. (2021). *Guía PRESEEA de estudio de la /d/ intervocálica*. First, middle and last five minutes. <https://preseea.uah.es/sites/default/files/2022-02/Gu%C3%ADa%20PRESEEA%20de%20estudio%20de%20la%20d%20intervoc%C3%A1lica_Samper,%20Malaver%20y%20Samper%20(2021).pdf>
+- Guerrero González, S., González Riffo, J., Espinoza Díaz, V., Ibarra Herrera, D. & Gajardo Moller, C. (2024). Evidencialidad de acervo común: patrones sociopragmáticos en el habla de Santiago de Chile. *Philologica Canariensia* 30, 275-296. Minutes 5-35; the first 10 minutes are assumed closest to formal register. <https://ojsspdc.ulpgc.es/ojs/index.php/PhilCan/article/download/1662/1819?inline=1>
+
+Word equivalent: informant words before the interpolated `<tiempo>` stamp, 190 MEDE and TCali files: 10:00 median 1,122 (middle half 952-1,269), used as 1,120; 5:00 median 512 (middle half 437-594), used as 510 by `--start-minute 5` (start of the interrogative-tag and evidentiality windows); 15:00 = 1,724. LAPR has no docx: for minute 5, cut 160 words from `data/text_pre_reclean/LAPR_*` (already cut at 350), not from `data/text`.
 
 ## Stanza corrections (`correct_tokens` in `pipeline/extract_stanza.py`)
 
@@ -93,7 +113,7 @@ Off by default; `--dialect pr --dialect co` turns them on, and the corpus needs 
 | `co` | dropped intervocalic d (*complicao*, *pesao*, *consentio*, *tímia*; mostly TUNJ) | lemma -ado, -ido |
 | `co` | *entoes* (= *entonces*) as NOUN/VERB/ADJ/PART (291, nearly all TUNJ) | ADV |
 
-Without them, 415 corpus tokens keep Stanza's tag or lemma and the table has 118,797 rows (16.99% of adjective rows intensified) instead of 119,002 (17.02%).
+Without them, those tokens keep Stanza's tag or lemma and the table has 100,260 rows (16.45% of adjective rows intensified) instead of 100,440 (16.46%) (2026-11-01, 310 transcripts).
 
 ## Adj_type, Noun and Verb (`sentence_relations` in `pipeline/extract_stanza.py`)
 

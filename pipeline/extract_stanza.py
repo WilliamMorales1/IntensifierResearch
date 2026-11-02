@@ -497,6 +497,10 @@ def _init_parser():
 def _parse_file(paths):
     src, dst = paths
     chunks = [c for s in read_corrected(src) for c in chunk_sentence(s)]
+    # an interview shorter than the skipped opening has no text left, and Stanza returns a bare list for no input
+    if not chunks:
+        open(dst, "w", encoding="utf-8").close()
+        return os.path.basename(src)
     tagger, parser = _nlp  # type: ignore
     doc = tagger([[t[0] for t in c] for c in chunks])
     for sent, chunk in zip(doc.sentences, chunks):

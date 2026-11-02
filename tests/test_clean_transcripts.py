@@ -39,14 +39,99 @@ def test_clean_data_keeps_preposition_a(tmp_path):
     assert (out / "05_speaker.txt").read_text(encoding="utf-8") == "A mí me gusta. A veces sí"
 
 
-def test_clean_data_reads_b_turns_for_listed_files(tmp_path):
+def test_clean_data_reads_b_turns_when_b_speaks_more(tmp_path):
     src, out = tmp_path / "original", tmp_path / "text"
     src.mkdir()
-    write_docx(src / "21_speaker.docx", ["A: pregunta", "B: respuesta", "A: fin"])
+    write_docx(src / "TrCTG_H21.docx", ["A: ¿y usted?", "B: yo vivo aquí hace años", "A: fin"])
 
     clean_data(str(src), str(out))
 
-    assert (out / "21_speaker.txt").read_text(encoding="utf-8") == "respuesta"
+    assert (out / "TrCTG_H21.txt").read_text(encoding="utf-8") == "yo vivo aquí hace años"
+
+
+def test_clean_data_keeps_informant_section_of_compilation(tmp_path):
+    src, out = tmp_path / "original", tmp_path / "text"
+    src.mkdir()
+    write_docx(
+        src / "34-Informante.docx",
+        [
+            "Hombre de 34 años",
+            "Informante Nº 19",
+            "A: soy José y hablo mucho aquí",
+            "B: fin",
+            "Mujer de 43 años",
+            "Informante Nº 34",
+            "A: soy yo y hablo mucho aquí",
+            "B: fin",
+        ],
+    )
+
+    clean_data(str(src), str(out))
+
+    assert (out / "34-Informante.txt").read_text(encoding="utf-8") == "soy yo y hablo mucho aquí"
+
+
+preseea_header = [
+    "MEDE_H01_1",
+    '<Hablante id="hab1" codigo_hab="I" papel="informante"/>',
+    '<Hablante id="hab2" codigo_hab="E" papel="entrevistador"/>',
+    "</Hablantes> </Trans>",
+    "PRESEEA - MEDELLÍN",
+    "E: Entrevistador",
+    "I: Informante",
+]
+
+
+def test_clean_data_preseea_informant_turns(tmp_path):
+    src, out = tmp_path / "original", tmp_path / "text"
+    src.mkdir()
+    write_docx(
+        src / "MEDE_H01_1.docx",
+        preseea_header
+        + [
+            "E:\t¿le parece que ha estado raro el clima?",
+            "I.:\tsí / muy<alargamiento/> raro // <énfasis>mucho</énfasis> calor",
+            "y lluvia E: ¿sí? I: sí señor",
+            "E. ¿y el barrio?",
+            "bonito <risas/> (risas)",
+            "E: bueno",
+            "otra cosa",
+        ],
+    )
+
+    clean_data(str(src), str(out))
+
+    assert (out / "MEDE_H01_1.txt").read_text(encoding="utf-8").split("\n") == [
+        "sí, muy raro. mucho calor y lluvia",
+        "sí señor",
+        "bonito",
+    ]
+
+
+def test_clean_data_reads_dialogue_tables(tmp_path):
+    src, out = tmp_path / "original", tmp_path / "text"
+    src.mkdir()
+    doc = Document()
+    for text in preseea_header:
+        doc.add_paragraph(text)
+    row = doc.add_table(rows=1, cols=2).rows[0]
+    row.cells[0].text = "1\n2"
+    row.cells[1].text = "E.: ¿cómo está?\nI.: bien gracias"
+    doc.save(src / "G2I1M20.docx")
+
+    clean_data(str(src), str(out))
+
+    assert (out / "G2I1M20.txt").read_text(encoding="utf-8") == "bien gracias"
+
+
+def test_remove_text_only_listed_files(tmp_path):
+    (tmp_path / "a.txt").write_text("uno dos tres", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("uno dos tres", encoding="utf-8")
+
+    remove_text(str(tmp_path), 2, ["a.txt"])
+
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "tres"
+    assert (tmp_path / "b.txt").read_text(encoding="utf-8") == "uno dos tres"
 
 
 def test_remove_text_drops_leading_words(tmp_path):
@@ -149,3 +234,19 @@ def test_interviewer_line_based(lines, kept):
 )
 def test_interviewer_inline_unlabeled_kept(text):
     assert remove_interviewer(text) == text
+
+
+@pytest.mark.parametrize(("args", "kept"), [([], 1180), (["--start-minute", "5"], 1790), (["--skip-words", "0"], 2300)])
+def test_cli_start_minute(tmp_path, args, kept):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    src, out = tmp_path / "original", tmp_path / "text"
+    src.mkdir()
+    write_docx(src / "05_speaker.docx", ["A: " + "palabra " * 2300, "B: fin"])
+    script = Path(__file__).parent.parent / "pipeline" / "clean_transcripts.py"
+
+    subprocess.run([sys.executable, script, "--input", src, "--output", out, *args], check=True, capture_output=True)
+
+    assert len((out / "05_speaker.txt").read_text(encoding="utf-8").split()) == kept

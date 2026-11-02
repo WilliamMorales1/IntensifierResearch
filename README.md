@@ -11,7 +11,7 @@ Results from an earlier version are published in [*Proceedings of the LSA* 11(1)
 ```fish
 conda env create -f environment.yml
 conda activate intensifier-research
-python pipeline/clean_transcripts.py                          # data/original/*.docx -> data/text/*.txt
+python pipeline/clean_transcripts.py                          # data/original/*.docx -> data/text/*.txt, from minute 10 (--start-minute 5 for minute 5)
 python pipeline/extract_stanza.py --dialect pr --dialect co   # data/text -> output/intensifier_data_stanza_<date>.sqlite
 ```
 

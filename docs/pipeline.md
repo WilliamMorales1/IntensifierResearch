@@ -4,7 +4,7 @@
 
 | Path | Contents |
 | --- | --- |
-| `data/original/` | transcripts as `.docx`, one per speaker; the file name (without extension) is the `Speaker` id. Delete everything before the first line of dialogue. |
+| `data/original/` | transcripts as `.docx`, one per speaker; the file name (without extension) is the `Speaker` id. Two formats are read as-is: PRESEEA (XML header with `codigo_hab`, `E:`/`I:` turns, markup like `<alargamiento/>`) and Cartagena (`A:`/`B:` turns, informant = whichever speaks more). `.doc` files need converting first (`convert_doc_docx`, LibreOffice). |
 | `data/speaker_data_ALL_2026-3-12.xlsx` | one row per speaker: `Speaker` plus any metadata columns (`Gender`, `Age`, `Edu`, `Corpus`, ...), copied onto every token. Optional; pass another sheet with `--speakers`. |
 
 ## Stages
@@ -29,7 +29,7 @@ Every cleaning rule, tag correction and extraction rule, with token counts: [`ru
 
 ## Running on Colab
 
-The transformer tagger and parser take days on a laptop CPU and about 1 h 40 min on a free Colab T4 for all 314 transcripts. With the [`colab` CLI](https://github.com/googlecolab/google-colab-cli) set up:
+The transformer tagger and parser take days on a laptop CPU and about 1 h 40 min on a free Colab T4 for all 310 transcripts (2026-11-01: tagging ~45 min, parsing ~25 min, plus restarts after a preempted VM). With the [`colab` CLI](https://github.com/googlecolab/google-colab-cli) set up:
 
 ```fish
 scripts/colab/start.sh    # packs pipeline/, data/text and finished tags/parses, starts the job on a T4

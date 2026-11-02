@@ -99,67 +99,127 @@ def convert_doc_docx(input_folder, output_folder):
             )
 
 
+def drop_asides(text):
+    return re.sub(
+        r"\(.*?\)\s*"  # parentheses + space
+        r"|[•·]",  # stray punctuation
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+
+
+def read_docx(path):
+    """read_docx returns the paragraphs of a docx plus its table cells, skipping line-number columns."""
+    doc = Document(path)
+    paragraphs = [paragraph.text for paragraph in doc.paragraphs]
+    # Tunja generation 2 and 3 put the whole dialogue in a table next to a column of line numbers
+    for table in doc.tables:
+        for row in table.rows:
+            paragraphs += [cell.text for cell in row.cells if not re.fullmatch(r"[\d\s]*", cell.text)]
+    return "\n".join(paragraphs)
+
+
+section_start = re.compile(r"^(?:Hombre|Mujer) de \d+ años", re.MULTILINE)
+informant_number = re.compile(r"informante N[º°o]\.?\s*(\d+)", re.IGNORECASE)
+
+
+def informant_section(text, filename):
+    """informant_section keeps only the interview whose informant number is in filename when a docx compiles several."""
+    starts = [m.start() for m in section_start.finditer(text)]
+    if len(starts) < 2 or not (m := re.search(r"\d+", filename)):
+        return text
+    for start, end in zip(starts, starts[1:] + [len(text)]):
+        if (n := informant_number.search(text, start, end)) and int(n[1]) == int(m[0]):
+            return text[start:end]
+    return text
+
+
+def cartagena_turns(content):
+    """cartagena_turns returns the turns of whichever of A and B speaks more, the informant."""
+    turns = {label: re.findall(label + r":\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL) for label in "AB"}
+    return max(turns.values(), key=lambda t: sum(len(turn.split()) for turn in t))
+
+
+# PRESEEA transcripts (Medellín, Cali, Tunja) open with an XML header giving each speaker's label
+speaker_code = re.compile(r"c[oó]digo_hab\s*=\s*[\"“”]?\s*([A-Z]\w{0,2})")
+legend_line = re.compile(
+    r"^\s*[A-Z]\d?\s*:\s*(?:Entrevistador|Informante|Audiencia)\w*\s*$", re.MULTILINE | re.IGNORECASE
+)
+
+
+def preseea_turns(text):
+    """preseea_turns returns the informant's ("I") turns of a PRESEEA transcript, markup removed."""
+    codes = set(speaker_code.findall(text)) | {"E", "I"}
+    header_end = text.find("\n", max(m.end() for m in speaker_code.finditer(text)))
+    text = legend_line.sub("", text[header_end:])
+    alt = "|".join(sorted(codes, key=len, reverse=True))
+    # "E:", "I.:", "e:" and Tunja's colon-less "E." open a line; mid-line turns always have the colon
+    label = re.compile(rf"^[ \t]*(?:(?i:{alt})\.*[ \t]*:|(?:{alt})\.+(?=\s))|(?<=\s)(?:{alt})\.?:")
+    turns, speaker, asked = [], None, False
+    for line in text.split("\n"):
+        labels = list(label.finditer(line))
+        # an unlabeled line right after the interviewer's question is the informant's answer with its label missing
+        if not labels and speaker == "E" and asked and line.strip():
+            speaker = "I"
+            turns.append("")
+        pos = 0
+        for m in labels:
+            if speaker == "I":
+                turns[-1] += " " + line[pos : m.start()]
+            speaker, pos = re.match(r"\s*([A-Za-z]\w?)", m[0])[1].upper(), m.end()
+            if speaker == "I":
+                turns.append("")
+        if speaker == "I":
+            turns[-1] += " " + line[pos:]
+        if line.strip():
+            asked = re.sub(r"<[^>]*>", "", line).rstrip().endswith("?")
+    # unclosed "<" marks and "====" rules are left over once the tags are gone
+    turns = [" ".join(re.sub(r"[<>]|={2,}", "", re.sub(r"<[^>]*>", "", t)).split()) for t in turns]
+    # "/" is a short pause and "//" a long one
+    turns = [re.sub(r"\s*/\s*", ", ", re.sub(r"\s*//+\s*", ". ", t)).strip(" ,") for t in turns]
+    return [t for t in turns if t]
+
+
 def clean_data(input_folder, output_folder):
     # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
 
-    # Step 1: Convert DOCX files to TXT and process them
+    written = []
     for filename in os.listdir(input_folder):
         if filename.endswith(".docx"):
             docx_path = os.path.join(input_folder, filename)
-            txt_file = os.path.splitext(filename)[0] + ".txt"
-            txt_path = os.path.join(output_folder, txt_file)
+            txt_path = os.path.join(output_folder, os.path.splitext(filename)[0] + ".txt")
 
-            # Convert DOCX to TXT
-            doc = Document(docx_path)
-            # Extract text from paragraphs
-            text_content = [paragraph.text for paragraph in doc.paragraphs]
-            # Combine paragraphs into a single string with formatted punctuation
-            full_text = "\n".join(text_content).replace("/", ",").replace(",,", ",")
-            # Write the text to a TXT file
-            with open(txt_path, "w", encoding="utf-8") as txt_file:
-                txt_file.write(full_text)
-
-            # Step 2: Clean the content of the newly created TXT file
-            with open(txt_path, "r", encoding="utf-8") as infile:
-                content = infile.read()
-
-            # Remove text based on conditions
-            content = re.sub(
-                r"\(.*?\)\s*"  # parentheses + space
-                r"|[•·]",  # stray punctuation
-                "",
-                content,
-                flags=re.DOTALL,
-            )
-
-            BXlist = ["21"]
-
-            if any(filename.startswith(num) for num in BXlist):
-                # Extract all sequences that start with A: and end with X:
-                filtered_sequences = re.findall(r"B:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL)
+            content = informant_section(read_docx(docx_path), filename)
+            if speaker_code.search(content):
+                turns = [drop_asides(t).strip() for t in preseea_turns(content)]
             else:
-                # Extract all sequences that start with B: and end with X:
-                filtered_sequences = re.findall(r"A:\s*(.*?)\s*[A-Z]:", content, flags=re.DOTALL)
+                turns = cartagena_turns(drop_asides(content.replace("/", ",").replace(",,", ",")))
 
-            # Join into one string (not line-based anymore, unless you want separators)
-            modified_content = clean_turns("\n".join(filtered_sequences))
+            modified_content = clean_turns("\n".join(turns))
             modified_content = modified_content.replace(":", "")
 
-            # Write the cleaned content back to the output file
             with open(txt_path, "w", encoding="utf-8") as outfile:
                 outfile.write(modified_content)
+            written.append(os.path.basename(txt_path))
 
     print("Successfully cleaned data")
+    return written
 
 
-# NOTE: COMMENT FOR IF YOU DONT WANT TO REMOVE FIRST 350 WORDS
-def remove_text(input_folder, num_words_to_remove):
+# median informant words before the 5:00 and 10:00 stamps in the time-stamped MEDE/TCali files (512, 1,122), used for
+# every file since Tunja and Cartagena have no stamps; PRESEEA guides start at minute 5 or 10
+start_words = {5: 510, 10: 1120}
+
+
+def remove_text(input_folder, num_words_to_remove, filenames=None):
 
     # Ensure the input folder exists
     os.makedirs(input_folder, exist_ok=True)
 
-    for filename in os.listdir(input_folder):
+    # texts without an original (LAPR) were trimmed when first cleaned; trimming again would cut more
+    for filename in filenames if filenames is not None else os.listdir(input_folder):
         if filename.endswith(".txt"):
             txt_path = os.path.join(input_folder, filename)
 
@@ -197,8 +257,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="data/original", help="folder of .docx transcripts")
     parser.add_argument("--output", default="data/text", help="where the cleaned .txt files go")
-    parser.add_argument("--skip-words", type=int, default=350, help="leading words dropped from each transcript")
+    parser.add_argument(
+        "--start-minute",
+        type=int,
+        choices=sorted(start_words),
+        default=10,
+        help="interview minute analysis starts at, as informant words dropped (5: 510, 10: 1,120)",
+    )
+    parser.add_argument("--skip-words", type=int, help="leading informant words dropped; overrides --start-minute")
     args = parser.parse_args()
-    clean_data(args.input, args.output)
-    if args.skip_words:
-        remove_text(args.output, args.skip_words)
+    written = clean_data(args.input, args.output)
+    skip = start_words[args.start_minute] if args.skip_words is None else args.skip_words
+    if skip:
+        remove_text(args.output, skip, written)
