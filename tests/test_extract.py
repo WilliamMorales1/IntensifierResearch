@@ -506,3 +506,48 @@ def test_result_clause_past_segment_comma(tmp_path):
     )
     df = analyze(str(tmp_path))
     assert "descarado" not in set(df.get("Lex_Adj", []))
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        "compartimos_VERB_compartir mucho_ADV_mucho juntos_ADJ_junto",
+        "he_AUX_haber estado_AUX_estar mucho_ADV_mucho hospitalizada_ADJ_hospitalizado",
+    ],
+)
+def test_mucho_on_verb_leaves_adjective_bare(segment):
+    assert token(segment)["Int"] == "/"
+
+
+def test_dialectal_mucho_after_ser_intensifies():
+    assert token("era_AUX_ser mucho_ADV_mucho chusco_ADJ_chusco")["Int"] == "mucho"
+
+
+@pytest.mark.parametrize(
+    ("tagged", "int_", "host"),
+    [
+        ("es_AUX_ser muy_ADV_mucho distin_ADJ_distin to_X_to", "muy", ("Lex_Adj", "distinto")),
+        ("no_ADV_no es_AUX_ser tan_ADV_tan lejo_ADV_lejo s_X_s", "tan", ("Adv", "lejos")),
+        ("está_AUX_estar muy_ADV_mucho calma_ADJ_calma do_ADV_do", "muy", ("Lex_Adj", "calmado")),
+        ("es_AUX_ser muy_ADV_mucho bue_ADV_bue no_ADV_no", "muy", ("Lex_Adj", "bueno")),
+    ],
+)
+def test_analyze_rejoins_split_words(tmp_path, tagged, int_, host):
+    (tmp_path / "S01.txt").write_text(tagged + "\n", encoding="utf-8")
+    rows = analyze(str(tmp_path), parses=lambda f: [None] * len(tagged.split()))
+    assert len(rows) == 1
+    assert (rows.iloc[0]["Int"], rows.iloc[0][host[0]]) == (int_, host[1])
+
+
+def test_split_bue_no_restart_stays_fragment():
+    from extract import join_splits
+
+    words = ["son_AUX_ser", "bue_ADV_bue", "no_ADV_no", "son_AUX_ser"]
+    assert join_splits(words)[0] == words
+
+
+def test_split_noun_cuidado_keeps_noun_and_others_take_word_tag():
+    from extract import join_splits
+
+    words, _ = join_splits(["mucho_DET_mucho", "cuida_NOUN_cuidar", "do_NOUN_do", "horri_NOUN_horri", "bles_ADJ_bles"])
+    assert words == ["mucho_DET_mucho", "cuidado_NOUN_cuidado", "horribles_ADJ_horrible"]

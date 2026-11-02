@@ -412,6 +412,48 @@ always_adverbs = {"ahorita", "ahoritica", "cerquita"}
 isimo_adverb = re.compile(r"(lej|tard|cerqu)ísim[oa]s?")
 
 
+# words the transcript splits in two (muy distin to, tan lejo s); (first, second): (upos, lemma) of the whole word
+split_words = {
+    ("distin", "to"): ("ADJ", "distinto"),
+    ("distin", "ta"): ("ADJ", "distinto"),
+    ("lejo", "s"): ("ADV", "lejos"),
+    ("calma", "do"): ("ADJ", "calmado"),
+    ("cuida", "do"): ("ADJ", "cuidado"),
+    ("horri", "bles"): ("ADJ", "horrible"),
+    ("bue", "no"): ("ADJ", "bueno"),
+    ("má", "s"): ("ADV", "más"),
+    ("entonce", "s"): ("ADV", "entonces"),
+    ("automática", "mente"): ("ADV", "automáticamente"),
+    ("actual", "mente"): ("ADV", "actualmente"),
+}
+
+
+def join_splits(words, parse=None):
+    """join_splits rejoins split_words pairs into one token, dropping the second piece's parse entry."""
+    out, out_parse = [], []
+    i = 0
+    while i < len(words):
+        first = words[i].split("_")
+        second = words[i + 1].split("_") if i + 1 < len(words) else []
+        key = (first[0].lower(), second[0].lower()) if len(first) == 3 and len(second) == 3 else None
+        # bue no son buenos restarts; only muy bue no is one word
+        if key in split_words and (key[0] != "bue" or (i > 0 and is_int(words[i - 1]))):
+            upos, lemma = split_words[key]
+            # no tiene mucho cuida do: the noun cuidado
+            if key == ("cuida", "do") and first[1] == "NOUN":
+                upos = "NOUN"
+            out.append(f"{first[0]}{second[0]}_{upos}_{lemma}")
+            if parse is not None:
+                out_parse.append(parse[i])
+            i += 2
+            continue
+        out.append(words[i])
+        if parse is not None:
+            out_parse.append(parse[i])
+        i += 1
+    return out, (out_parse if parse is not None else None)
+
+
 def retag(words):
     """retag fixes host tags the tagger gets wrong: ahorita/lejísimos ADV, poquito ADV or DET."""
     out = []
@@ -460,6 +502,22 @@ def _verbal(word, relations):
     return relations is not None and relations.verbal_int and get_int(word) in verbal_intensifiers
 
 
+def _mucho_off_host(words, i, k):
+    # compartimos mucho juntos, he estado mucho hospitalizada: mucho grades the verb or counts how often
+    if get_int(words[k]) != "mucho" or _upos(words[i]) != "ADJ":
+        return False
+    p = k
+    while p > 0 and _text(words[p - 1]) == "mucho":
+        p -= 1
+    if p == 0:
+        return False
+    before = words[p - 1].split("_")
+    if len(before) != 3:
+        return False
+    participle = re.search(r"[ai]d[oa]s?$", words[i].split("_")[2])
+    return before[1] == "VERB" or (before[2] == "estar" and bool(participle))
+
+
 def _modifier(words, i, degree, relations=None):
     # (Int, Double) for the host at i, or None when the row leaves the envelope of variation
     k = i - 1
@@ -472,7 +530,7 @@ def _modifier(words, i, degree, relations=None):
             return None
         if _text(words[k]) == "menos":
             return "más o menos", "/"
-    elif not is_int(words[k]) or is_mas_bien(words, i) or _verbal(words[k], relations):
+    elif not is_int(words[k]) or is_mas_bien(words, i) or _verbal(words[k], relations) or _mucho_off_host(words, i, k):
         return "/", "/"
     double = "/"
     if k > 0 and (is_int(words[k - 1]) or _is_degree_int(words, k - 1, degree)):
@@ -697,13 +755,16 @@ def analyze(input_path, output_filename=None, parses=None, drop_invariant=False)
             content = file.read()
             content = content.replace("\n", " ")
 
+            parse = parses(filename) if parses else None
+            tokens = content.split()
+            if parse is not None and len(parse) != len(tokens):
+                raise ValueError(f"{filename}: parse has {len(parse)} tokens, tags have {len(tokens)}")
+            tokens, parse = join_splits(tokens, parse)
+            content = " ".join(tokens)
+
             # Split the content into segments based on custom sentence-ending punctuation
             segments = re.split(r"(?<=[,.!?]_PUNCT_[,.!?])", content)
-
-            parse = parses(filename) if parses else None
             starts = [m.start() for m in re.finditer(r"\S+", content)]
-            if parse is not None and len(parse) != len(starts):
-                raise ValueError(f"{filename}: parse has {len(parse)} tokens, tags have {len(starts)}")
 
             # tan cansada , que no sé: the result clause can lie past the segment's comma
             degree = degree_types(retag(content.split()))

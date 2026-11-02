@@ -93,6 +93,8 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | function words as adverb hosts (*muy digamos*, *bien hasta con*, *mucho tanto*, *bien igual*, *casi toos*) | non-gradable, as above |
 | *más bien* + host | host kept, no intensifier |
 | *mucho, bien, casi, bastante, demasiado, harto*, *-mente* intensifiers the parse hangs on a verb, not on the host (*se cansara mucho acostada*, *comiendo mucho afuera*, *ver bien tranquilamente*, *habla mucho aquí*) | host kept, no intensifier (`verbal_int` in `sentence_relations`), unless the host is an ADJ under *ser/estar/parecer/quedar/sentir* (*quede bien limpiecita*). *muy, tan, súper* never grade verbs and are left alone. 12 intensified rows changed and 101 bare adverb rows added (they were dropped as intensified non-gradable before). Hand check of the 12: 9 right, 2 unclear (*iba bien amarrada*), 1 wrong (*vive bien mal*) |
+| *mucho* + ADJ after a lexical verb (*compartimos mucho juntos*, *disfrutaran mucho necesario*) or + participle after *estar* (*he estado mucho hospitalizada*, = often) | host kept, no intensifier: *mucho* grades the verb or counts how often. 3 rows. *era mucho chusco*, *mucho mucho raro era* (dialectal *mucho* = *muy*) stay intensified |
+| words split by the transcriber (*muy distin to*, *tan lejo s*, *muy calma do*, *bien cuida do*, *muy bue no*, *horri bles*, *entonce s*, *má s*, *actual mente*) | rejoined before extraction (`split_words`, `join_splits` in `analyze`; the second piece's parse entry is dropped, so no retag). *bue no* only after an intensifier (*son bue no son buenos* is a restart); *mucho cuida do* stays NOUN. 8 rows changed (5 intensified: *distinto* x2, *lejos* x2, *calmado*, *bueno*, *cuidado*; junk hosts *distin*, *lejo*, *calmo*, *ble* gone), 8 bare rows added (*entonces* x5, *horrible*, *calmado*, *actualmente*) |
 | disfluency fragments (*muy bue muy bueno*, *muy d muy rápido*, *muy comple es muy complejo*, *casi nun*) | row dropped |
 | feminine lemmas in *-dora/-tora/-sora* | *acogedora* -> *acogedor* |
 | singular *-s* and invariant *-a* lemmas (*gris*, *francés*, *egoísta*, *paisa*, *-ista*, *-crata*) | kept, not *gri*, *egoísto* |
@@ -173,7 +175,5 @@ Verb is the first VERB, `cop` child or AUX up the head chain, for adverb rows to
 
 ## Known gaps
 
-- *mucho* + adjective after a copula (*era mucho chusco*) is left alone as possibly dialectal.
-- Words split by the transcriber (*muy distin to*, *bastante agra dable*; ~15 tokens) keep the cut piece as host.
 - Depictives parsed as `amod` (*tuvimos el hijo soltera*) and standalone comments attached to the nearest noun (*me da alegría, muy bueno*) get the wrong Adj_type.
 - Unlabeled interviewer questions and backchannels (*mhm*, *qué bueno*) stay in the text.
