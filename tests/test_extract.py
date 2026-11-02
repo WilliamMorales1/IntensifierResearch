@@ -615,3 +615,30 @@ def test_write_outputs_without_speakers_adds_no_metadata(tmp_path):
     assert "Gender" not in df.columns
     assert (tmp_path / "out.sqlite").exists()
     assert not (tmp_path / "out_re-words.txt").exists()
+
+
+@pytest.mark.parametrize(
+    ("tagged", "expected"),
+    [
+        ("es_AUX_ser muy_ADV_mucho feliz_ADJ_feliz", ("muy", "feliz", "feliz")),
+        ("son_AUX_ser muy_ADV_mucho felices_ADJ_feliz", ("muy", "felices", "feliz")),
+        ("es_AUX_ser capaz_ADJ_capaz", ("/", "capaz", "capaz")),
+        ("fue_AUX_ser tenaz_ADJ_tenaz", ("/", "tenaz", "tenaz")),
+        ("palabras_NOUN_palabra soeces_ADJ_soez", ("/", "soeces", "soez")),
+    ],
+)
+def test_z_adjectives_are_hosts(tagged, expected):
+    row = token(tagged)
+    assert (row["Int"], row["Adj"], row["Lex_Adj"]) == expected
+
+
+@pytest.mark.parametrize(
+    "tagged",
+    [
+        "cebolla_NOUN_cebolla cabezona_ADJ_cabez",
+        "una_DET_uno diz_ADJ_diz cosa_NOUN_cosa",
+        "la_DET_el mano_NOUN_mano iz_ADJ_iz",
+    ],
+)
+def test_cut_z_lemmas_are_not_hosts(tagged):
+    assert process_segment(tagged, "S01") == []

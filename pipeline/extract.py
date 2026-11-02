@@ -176,10 +176,15 @@ def is_well_formed(word):
     return bool(any(word.endswith(c) for c in "oaeslndr") and re.match(r"^[a-zA-Z_áéíóúüñÁÉÍÓÚÜÑí]+$", word))
 
 
+# feliz, capaz, tenaz; the surface check keeps cut lemmas out (cabezona -> cabez, dizque -> diz)
+z_adjective = re.compile(r"[a-záéíóúüñ]+[aeio](z|ces)_ADJ_[a-záéíóúüñ]{2,}[aeio]z", re.IGNORECASE)
+
+
 def is_adj(word):
     adj_match = re.search(r"^(.*)_ADJ_", word)
     lex_adj_match = re.search(r"_ADJ_(.+)", word)
-    return bool(adj_match and lex_adj_match and is_well_formed(word) and not word.endswith("mente"))
+    well_formed = is_well_formed(word) or z_adjective.fullmatch(word)
+    return bool(adj_match and lex_adj_match and well_formed and not word.endswith("mente"))
 
 
 def deaccent(word):

@@ -106,7 +106,8 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *súper/super/supel* written onto the host (*superdisfuncional*, *súperdeliciosos*, *súperbien*; 5) | host *disfuncional*, *deliciosos*/*delicioso*, *bien*; Int `súper`, as when written apart. *superior*, *superficial*, *supersticioso*, *superable*, *supermercado* kept |
 | *requete-*, *recontra-* prefixes (0) and free *requete*, *recontra* | host without the prefix; Int `requete-`/`recontra-` or `requete`/`recontra` |
 | *archi-* | host without it (*archiconocido* -> *conocido*); *archivo/archivado*, *archipiélago*, *archiduque* kept |
-| attached *re-* (*retemprano*; 1) | host *temprano*, Int `re`, only for hosts in `re_prefixed` (*temprano*, *tenaz*): most *re-* adjectives are lexical (*reunido*, *relleno*, *retirado*), and *rete-* + X cannot be told from *re-* + *te*X |
+| *-z* adjectives (*feliz*, *capaz*, *tenaz*, *eficaz*, *precoz*; 372 rows, 46 intensified) | hosts when the surface ends in vowel + *z*/*ces*; cut lemmas (*cabezona* -> *cabez*, *dizque* -> *diz*, *iz*) stay out |
+| attached *re-* (*retemprano*, *retenaz*; 2) | host *temprano*, Int `re`, only for hosts in `re_prefixed` (*temprano*, *tenaz*): most *re-* adjectives are lexical (*reunido*, *relleno*, *retirado*), and *rete-* + X cannot be told from *re-* + *te*X |
 | *ahorita* as ADJ/NOUN/VERB/PRON | ADV |
 | *poquito* | ADV after an intensifier or verb (*muy poquito*); DET before a noun and for *poquita/os/as*; NOUN (*un poquito*) kept |
 | lateralized adverb hosts (*celca*, *talde*) | `Adv` uses the r lemma `pr` gave it |
