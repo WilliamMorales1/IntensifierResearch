@@ -101,6 +101,12 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | *muchísimo/a/os*, *tantísimas* | row dropped |
 | *-ísimo* bases (*grandísimo*, *facilísimo*, *cheverísimo*) | base form found in the corpus: *grande*, *fácil*, *chévere*; adjective surface rebuilt (*grandas* -> *grandes*) |
 | *-ísimo* on adverbs (*lejísimos*, *tardísimo*, *cerquísima*) | host *lejos*, *tarde*, *cerca*, Int `-ísimo`; *lejísimos* ADJ retagged ADV |
+| *-ísimo* stem in *-bil* with no base elsewhere (*amabilísimo*) | *amable* |
+| *-érrimo* (*paupérrimas*, *celebérrimo*, *libérrimo*; 0 in corpus) | host *pobres*/*pobre*, *célebre*, *libre*; Int `-érrimo` |
+| *súper/super/supel* written onto the host (*superdisfuncional*, *súperdeliciosos*, *súperbien*; 5) | host *disfuncional*, *deliciosos*/*delicioso*, *bien*; Int `súper`, as when written apart. *superior*, *superficial*, *supersticioso*, *superable*, *supermercado* kept |
+| *requete-*, *recontra-* prefixes (0) and free *requete*, *recontra* | host without the prefix; Int `requete-`/`recontra-` or `requete`/`recontra` |
+| *archi-* | host without it (*archiconocido* -> *conocido*); *archivo/archivado*, *archipiélago*, *archiduque* kept |
+| attached *re-* (*retemprano*; 1) | host *temprano*, Int `re`, only for hosts in `re_prefixed` (*temprano*, *tenaz*): most *re-* adjectives are lexical (*reunido*, *relleno*, *retirado*), and *rete-* + X cannot be told from *re-* + *te*X |
 | *ahorita* as ADJ/NOUN/VERB/PRON | ADV |
 | *poquito* | ADV after an intensifier or verb (*muy poquito*); DET before a noun and for *poquita/os/as*; NOUN (*un poquito*) kept |
 | lateralized adverb hosts (*celca*, *talde*) | `Adv` uses the r lemma `pr` gave it |
@@ -113,7 +119,7 @@ Raw tags in `data/stanza_tagged` are never edited; corrected ones go to `data/st
 | Int_type | Int |
 | --- | --- |
 | maximizer | *absolutamente, completamente, totalmente, plenamente, extremadamente, sumamente* |
-| booster | *muy, bien, mucho, harto, bastante, demasiado, súper, re-, archi-, -ísimo, realmente, verdaderamente, increíblemente, tan*, exclamative *más* |
+| booster | *muy, bien, mucho, harto, bastante, demasiado, súper, re, requete(-), recontra(-), archi-, -ísimo, -érrimo, realmente, verdaderamente, increíblemente, tan*, exclamative *más* |
 | approximator | *casi* |
 | compromiser | *más o menos* (Quirk's *more or less*; Norwegian *mer eller mindre* is a downtoner in Stratton & Sundquist 2022:391) |
 | emphasizer | *especialmente, estrictamente* (like Norwegian *særlig* 'particularly') |

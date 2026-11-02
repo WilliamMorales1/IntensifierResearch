@@ -33,6 +33,8 @@ intensifier_list = [
     "super",
     "supel",
     "re",
+    "requete",
+    "recontra",
     "archi",
 ]
 
@@ -54,6 +56,10 @@ int_types = {
     "demasiado": "booster",
     "súper": "booster",
     "re": "booster",
+    "requete": "booster",
+    "requete-": "booster",
+    "recontra": "booster",
+    "recontra-": "booster",
     "realmente": "booster",
     "verdaderamente": "booster",
     "increíblemente": "booster",
@@ -61,6 +67,7 @@ int_types = {
     "más": "booster",
     "-ísimo": "booster",
     "archi-": "booster",
+    "-érrimo": "booster",
     "casi": "approximator",
     "más o menos": "compromiser",
     "especialmente": "emphasizer",
@@ -219,6 +226,74 @@ def get_adv(word):
     if lemma.lower() != adverb.lower() and delateralize(adverb.lower()) == lemma.lower():
         return lemma.lower()
     return adverb.lower()
+
+
+# bound intensifying prefixes, longest first; super written together with its host is the word súper
+prefix_ints = [
+    ("requete", "requete-"),
+    ("recontra", "recontra-"),
+    ("súper", "súper"),
+    ("super", "súper"),
+    ("supel", "súper"),
+    ("archi", "archi-"),
+]
+# lexical words that only look prefixed (superior, retener, archivo)
+prefix_lexical = (
+    "superi",
+    "superfic",
+    "supersti",
+    "superad",
+    "superab",
+    "supermerc",
+    "supeli",
+    "archiv",
+    "archipi",
+    "archidu",
+)
+# re- is mostly lexical (reunido, relleno, retirado), so only these attested hosts take it as a booster
+re_prefixed = {"temprano", "tenaz"}
+
+
+def strip_prefix(word):
+    """strip_prefix returns the intensifier and prefix length of a prefixed host (superbonito -> súper, 5), or None."""
+    low = word.lower()
+    if low.startswith("re") and low[2:] in re_prefixed:
+        return "re", 2
+    if low.startswith(prefix_lexical):
+        return None
+    for prefix, intensifier in prefix_ints:
+        if low.startswith(prefix) and len(low) - len(prefix) >= 4:
+            return intensifier, len(prefix)
+    return None
+
+
+# irregular -érrimo bases; regular ones are stem + re (celebérrimo -> célebre is listed for the accent)
+errimo_bases = {
+    "paup": "pobre",
+    "celeb": "célebre",
+    "lib": "libre",
+    "ac": "acre",
+    "integ": "íntegro",
+    "mis": "mísero",
+    "asp": "áspero",
+    "nig": "negro",
+    "pulqu": "pulcro",
+    "salub": "salubre",
+}
+
+
+def strip_errimo(adjective, lex_adjective):
+    """strip_errimo returns the surface and lemma of an -érrimo host's base (paupérrimas -> pobres, pobre), or None."""
+    lex_match = re.fullmatch(r"(.+)érrim[oa]s?", lex_adjective)
+    surface_match = re.fullmatch(r"(.+)érrim([oa]?s?)", adjective)
+    if not (lex_match and surface_match):
+        return None
+    stem = lex_match.group(1)
+    base = errimo_bases.get(stem, stem + "re")
+    ending = surface_match.group(2)
+    if base.endswith("o"):
+        return base[:-1] + ending, base
+    return base + ("s" if ending.endswith("s") else ""), base
 
 
 # adverbs whose base does not end in -o
@@ -575,10 +650,15 @@ def process_segment(segment, speaker, parse=None, degree=None):
                 adjective = adjective.replace("ísim", "")
                 lex_adjective = lex_adjective.replace("ísim", "")
 
-            if lex_adjective.startswith("archi"):
-                intensifier = "archi-"
-                adjective = adjective.replace("archi", "")
-                lex_adjective = lex_adjective.replace("archi", "")
+            errimo = strip_errimo(adjective, lex_adjective)
+            if errimo:
+                intensifier = "-érrimo"
+                adjective, lex_adjective = errimo
+
+            prefixed = strip_prefix(lex_adjective)
+            if prefixed:
+                intensifier = prefixed[0]
+                adjective, lex_adjective = adjective[prefixed[1] :], lex_adjective[prefixed[1] :]
 
             # FRASE
             phrase_tagged = " ".join(words)
@@ -618,6 +698,9 @@ def process_segment(segment, speaker, parse=None, degree=None):
                 continue
             if isimo_base:
                 intensifier, adverb = "-ísimo", isimo_base
+            prefixed = strip_prefix(adverb)
+            if prefixed:
+                intensifier, adverb = prefixed[0], adverb[prefixed[1] :]
 
             # FRASE REAL
             phrase_tagged = " ".join(words)
@@ -665,6 +748,8 @@ def isimo_base(stem, lexicon):
     for candidate in candidates:
         if deaccent(candidate) in lexicon:
             return lexicon[deaccent(candidate)]
+    if stem.endswith("bil"):
+        return stem[:-3] + "ble"
     if re.search(r"n[dt]$|rav$", stem):
         return stem + "e"
     return stem + "o"

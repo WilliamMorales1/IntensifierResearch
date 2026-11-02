@@ -84,9 +84,66 @@ def test_isimo_superlative_restores_base(segment, adj, lex):
     assert (row["Int"], row["Adj"], row["Lex_Adj"]) == ("-ísimo", adj, lex)
 
 
-def test_archi_prefix():
-    row = token("archiconocido_ADJ_archiconocido")
-    assert (row["Int"], row["Lex_Adj"]) == ("archi-", "conocido")
+@pytest.mark.parametrize(
+    ("tagged", "expected"),
+    [
+        ("archiconocido_ADJ_archiconocido", ("archi-", "conocido", "conocido")),
+        ("superbonito_ADJ_superbonito", ("súper", "bonito", "bonito")),
+        ("súperdeliciosos_ADJ_súperdelicioso", ("súper", "deliciosos", "delicioso")),
+        ("supelbonita_ADJ_supelbonito", ("súper", "bonita", "bonito")),
+        ("requetebueno_ADJ_requetebueno", ("requete-", "bueno", "bueno")),
+        ("recontrabuena_ADJ_recontrabueno", ("recontra-", "buena", "bueno")),
+        ("retemprano_ADJ_retemprano", ("re", "temprano", "temprano")),
+        ("paupérrimas_ADJ_paupérrimo", ("-érrimo", "pobres", "pobre")),
+        ("celebérrimo_ADJ_celebérrimo", ("-érrimo", "célebre", "célebre")),
+        ("libérrima_ADJ_libérrimo", ("-érrimo", "libre", "libre")),
+        ("integérrimo_ADJ_integérrimo", ("-érrimo", "íntegro", "íntegro")),
+    ],
+)
+def test_bound_intensifier_strips_to_base(tagged, expected):
+    row = token("es_AUX_ser " + tagged)
+    assert (row["Int"], row["Adj"], row["Lex_Adj"]) == expected
+    assert row["Int_type"] == "booster"
+
+
+@pytest.mark.parametrize(
+    "tagged",
+    [
+        "archivado_ADJ_archivado",
+        "superior_ADJ_superior",
+        "superiol_ADJ_superior",
+        "superficial_ADJ_superficial",
+        "supersticiosa_ADJ_supersticioso",
+        "superable_ADJ_superable",
+        "reunido_ADJ_reunido",
+        "relleno_ADJ_relleno",
+        "retirado_ADJ_retirado",
+        "retebueno_ADJ_retebueno",
+        "hiperactivo_ADJ_hiperactivo",
+        "ultraconservadora_ADJ_ultraconservador",
+        "extraordinario_ADJ_extraordinario",
+        "sobrenatural_ADJ_sobrenatural",
+    ],
+)
+def test_lexical_prefix_lookalikes_stay_bare(tagged):
+    row = token("es_AUX_ser " + tagged)
+    assert row["Int"] == "/"
+    assert row["Lex_Adj"] == tagged.split("_")[2]
+
+
+def test_super_prefix_on_adverb():
+    (row,) = process_segment("está_AUX_estar súperbien_ADV_súperbien", "S01")
+    assert (row["Int"], row["Adv"]) == ("súper", "bien")
+
+
+@pytest.mark.parametrize("word", ["requete", "recontra"])
+def test_free_requete_recontra_intensify(word):
+    row = token(f"es_AUX_ser {word}_ADV_{word} bonito_ADJ_bonito")
+    assert (row["Int"], row["Int_type"], row["Lex_Adj"]) == (word, "booster", "bonito")
+
+
+def test_isimo_bil_base_without_lexicon():
+    assert isimo_base("amabil", {}) == "amable"
 
 
 @pytest.mark.parametrize(

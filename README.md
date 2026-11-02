@@ -40,7 +40,7 @@ The classification is partly arbitrary. The scale was written for English, and t
 - *bastante* and *demasiado* are boosters because in this Colombian corpus they mostly mean 'very'. Elsewhere they can read as 'fairly' (compromiser) or 'too' (excess).
 - *extremadamente* and *sumamente* are maximizers because Quirk lists *extremely* among them. Many studies call them boosters.
 - *realmente*, *verdaderamente* and *increíblemente* are boosters, as *really* is in Tagliamonte's work. Quirk calls *really* an emphasizer.
-- *-ísimo* and *archi-* are boosters, though grammars call *-ísimo* the *superlativo absoluto*.
+- *-ísimo*, *-érrimo*, *archi-*, *requete-*, *recontra-* and attached *súper-* are boosters, though grammars call *-ísimo* the *superlativo absoluto*.
 - *más o menos* is a compromiser, after Quirk's *more or less*.
 - Which uses of *tan* and *más* count as intensifiers is a rule-based guess: comparatives, *tan X como*, *tan X que* result clauses and 'how' readings are dropped. Earlier Spanish work dropped *tan* and *más* entirely (Brown & Cortés-Torres 2013; Orozco, Morales & Valenzuela 2026).
 
